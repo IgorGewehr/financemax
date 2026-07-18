@@ -1,10 +1,7 @@
 /**
  * Resumo REAL da lente Assinaturas — direto de `GET /financeiro/receita-recorrente`
- * (`useReceitaRecorrente`), sem passar pelos cálculos derivados de `RECORRENTES_MOCK` que
- * alimentam `AssinKpis`/`AssinAnalisePanel` logo abaixo. Vive num bloco PRÓPRIO de propósito —
- * nunca misturado num mesmo card com número mock (ver `MockBadge`: "um número real e um de
- * exemplo lado a lado sem marcação são indistinguíveis pro usuário"). Aqui a marcação é a seção:
- * este bloco não tem badge (é real); o painel abaixo mantém o dele.
+ * (`useReceitaRecorrente`). Vive num bloco próprio (nunca misturado com número inventado — um
+ * real e um ilustrativo lado a lado sem marcação seriam indistinguíveis pro usuário).
  */
 import { Database } from 'lucide-react';
 import type { ReactNode } from 'react';

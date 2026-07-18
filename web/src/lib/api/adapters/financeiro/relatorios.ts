@@ -20,7 +20,6 @@ export function deContasEmAbertoDto(dto: ContasEmAbertoDto): AbertoViewModel {
   }));
 
   return {
-    docLabel: 'Contas em aberto',
     receberEmAberto: dto.receberEmAberto.centavos,
     receberAtrasado: dto.receberAtrasado.centavos,
     pagarEmAberto: dto.pagarEmAberto.centavos,
@@ -30,7 +29,6 @@ export function deContasEmAbertoDto(dto: ContasEmAbertoDto): AbertoViewModel {
 
 export function deReceitaRecorrenteParaMrr(dto: ReceitaRecorrenteDto): MrrViewModel {
   return {
-    docLabel: 'Relatório MRR',
     condicaoLabel: 'Visível porque vende serviço recorrente',
     mrr: dto.mrr.centavos,
     churnMes: dto.mrrChurnNoMes.centavos,

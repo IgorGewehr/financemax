@@ -1,6 +1,6 @@
 import { Plus } from 'lucide-react';
 
-import { MockBadge, SectionCard, StatusChip } from '@/components/shared';
+import { SectionCard, StatusChip } from '@/components/shared';
 import { formatDateShort } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
@@ -8,17 +8,8 @@ import { categoriaLabel } from './calc';
 import { ModalDarBaixa } from './ModalDarBaixa';
 import { ModalDetalhe } from './ModalDetalhe';
 import { ModalLancamento } from './ModalLancamento';
-import { formatCentavosWhole } from './money';
 import { MoneyValue } from './MoneyValue';
-import type {
-  CategoriasLancamentoRapido,
-  ContaDisponivel,
-  FiltroAtivo,
-  LancamentoRow,
-  NovoLancamentoInput,
-  ResumoPdvMes,
-  TimelineEntry,
-} from './types';
+import type { CategoriasLancamentoRapido, ContaDisponivel, FiltroAtivo, LancamentoRow, NovoLancamentoInput, TimelineEntry } from './types';
 
 interface LinhaDoTempoProps {
   entries: TimelineEntry[];
@@ -29,8 +20,6 @@ interface LinhaDoTempoProps {
   onDarBaixa: (rowId: string) => void;
   onCobrar: (rowId: string) => void;
   onAbrirDetalhe: (rowId: string) => void;
-  onVerExtratoCompleto: () => void;
-  resumoPdvMes: ResumoPdvMes;
 
   modalBaixa: { aberto: boolean; row: LancamentoRow | null };
   onFecharBaixa: () => void;
@@ -60,8 +49,6 @@ export function LinhaDoTempo({
   onDarBaixa,
   onCobrar,
   onAbrirDetalhe,
-  onVerExtratoCompleto,
-  resumoPdvMes,
   modalBaixa,
   onFecharBaixa,
   onConfirmarBaixa,
@@ -118,9 +105,6 @@ export function LinhaDoTempo({
               <tbody>
                 {entries.map((entry, i) => {
                   if (entry.kind === 'divider') return <DividerRow key={`divider-${i}`} label={entry.label} />;
-                  if (entry.kind === 'summary') {
-                    return <SummaryRow key="summary" resumoPdvMes={resumoPdvMes} onVerExtratoCompleto={onVerExtratoCompleto} />;
-                  }
                   return (
                     <RowLine
                       key={entry.row.id}
@@ -174,30 +158,6 @@ function DividerRow({ label }: { label: string }) {
           <span className="whitespace-nowrap text-[11px] font-bold uppercase tracking-wide text-primary-600">{label}</span>
           <span className="h-px flex-1 bg-border" />
         </div>
-      </td>
-    </tr>
-  );
-}
-
-function SummaryRow({ resumoPdvMes, onVerExtratoCompleto }: { resumoPdvMes: ResumoPdvMes; onVerExtratoCompleto: () => void }) {
-  return (
-    <tr>
-      <td colSpan={6} className="px-4 py-3.5 text-center text-[12.5px] text-muted-foreground">
-        <MockBadge
-          className="mr-2 align-middle"
-          titulo="Resumo do PDV do mês ainda não é decomposto do extrato — número de exemplo."
-        />
-        + {resumoPdvMes.qtdVendas} vendas menores no PDV este mês ({formatCentavosWhole(resumoPdvMes.totalCentavos)}) ·{' '}
-        <a
-          href="#"
-          onClick={(e) => {
-            e.preventDefault();
-            onVerExtratoCompleto();
-          }}
-          className="font-bold text-primary-600 hover:underline"
-        >
-          Ver extrato completo →
-        </a>
       </td>
     </tr>
   );

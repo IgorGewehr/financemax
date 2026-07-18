@@ -3,33 +3,17 @@ import { ClipboardList } from 'lucide-react';
 import { Surface } from '@/components/ui/Surface';
 import { cn } from '@/lib/utils';
 
-import { DocActions } from './DocActions';
 import { agingWidths } from './helpers';
 import { MoneyWhole } from './MoneyWhole';
-import type { AbertoViewModel, AccountantContact, DocGenState } from './types';
+import type { AbertoViewModel } from './types';
 
 interface AbertoCardProps {
   aberto: AbertoViewModel;
-  contact: AccountantContact;
-  pdfState: DocGenState;
-  excelState: DocGenState;
-  onGeneratePdf: () => void;
-  onGenerateExcel: () => void;
-  onSend: (channel: 'email' | 'whatsapp') => void;
   className?: string;
 }
 
 /** Card "Contas em aberto" — a pagar/receber + barra de aging (larguras derivadas, não hardcoded). */
-export function AbertoCard({
-  aberto,
-  contact,
-  pdfState,
-  excelState,
-  onGeneratePdf,
-  onGenerateExcel,
-  onSend,
-  className,
-}: AbertoCardProps) {
+export function AbertoCard({ aberto, className }: AbertoCardProps) {
   const widths = agingWidths(aberto.agingBuckets);
 
   return (
@@ -73,15 +57,6 @@ export function AbertoCard({
           ))}
         </div>
       </div>
-
-      <DocActions
-        pdfState={pdfState}
-        excelState={excelState}
-        onGeneratePdf={onGeneratePdf}
-        onGenerateExcel={onGenerateExcel}
-        onSend={onSend}
-        contact={contact}
-      />
     </Surface>
   );
 }

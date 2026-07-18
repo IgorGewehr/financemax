@@ -8,7 +8,7 @@ interface PageHeaderProps {
   subtitle?: ReactNode;
   /** Ações à direita (seletor de período, botão primário). */
   actions?: ReactNode;
-  /** Selo discreto (ex.: `<MockBadge />`) logo após o subtítulo — tela 100% mock, ainda sem API. */
+  /** Selo discreto opcional logo após o subtítulo. */
   badge?: ReactNode;
 }
 

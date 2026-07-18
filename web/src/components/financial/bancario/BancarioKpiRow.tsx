@@ -6,7 +6,7 @@ import type { Centavos } from '@/lib/money';
 import { cn } from '@/lib/utils';
 
 import { BancarioMoneyValue } from './BancarioMoneyValue';
-import { saldoTotalContas, formatSaldoFoot, mesEntrouTotal, mesSaiuTotal } from './derive';
+import { saldoTotalContas, formatSaldoFoot, mesEntrouTotal, mesSaiuTotal, computeSaldoSparkline } from './derive';
 import { formatCentavosWhole } from './money';
 import type { ContaBancaria, KpiDeltaExemplo, SemanaMovimento } from './types';
 
@@ -38,9 +38,13 @@ function KpiDelta({ delta }: { delta: KpiDeltaExemplo }) {
   );
 }
 
-/** Sparkline decorativa do KPI hero — mesma curva de exemplo do mockup (dado ilustrativo). */
-function SaldoSparkline() {
+/**
+ * Sparkline do KPI hero — traçado REAL, reconstruído do saldo atual das contas + o líquido de
+ * cada semana carregada (ver `computeSaldoSparkline`). Sem semana nenhuma, cai numa reta neutra.
+ */
+function SaldoSparkline({ contas, semanas }: { contas: ContaBancaria[]; semanas: SemanaMovimento[] }) {
   const gradientId = useId();
+  const { linePath, areaPath, lastPoint } = computeSaldoSparkline(contas, semanas);
   return (
     <svg
       viewBox="0 0 260 34"
@@ -54,15 +58,9 @@ function SaldoSparkline() {
           <stop offset="1" stopColor="currentColor" stopOpacity="0" />
         </linearGradient>
       </defs>
-      <path
-        d="M0,24 L52,27 L104,15 L156,20 L208,8 L260,4"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={2}
-        strokeLinecap="round"
-      />
-      <path d="M0,24 L52,27 L104,15 L156,20 L208,8 L260,4 L260,34 L0,34 Z" fill={`url(#${gradientId})`} stroke="none" />
-      <circle cx={260} cy={4} r={3} fill="currentColor" />
+      <path d={linePath} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
+      <path d={areaPath} fill={`url(#${gradientId})`} stroke="none" />
+      <circle cx={lastPoint.x} cy={lastPoint.y} r={3} fill="currentColor" />
     </svg>
   );
 }
@@ -88,7 +86,7 @@ export function BancarioKpiRow({
   return (
     <section className="mb-4 grid grid-cols-2 gap-3.5 sm:grid-cols-4">
       <KpiCard hero label="Saldo em bancos" value={<BancarioMoneyValue centavos={saldoTotal} />} foot={<KpiDelta delta={kpiSaldoDelta} />}>
-        <SaldoSparkline />
+        <SaldoSparkline contas={contas} semanas={semanas} />
         <div className="mt-1 text-xs text-muted-foreground">{saldoFoot}</div>
       </KpiCard>
 

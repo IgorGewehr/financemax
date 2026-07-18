@@ -88,6 +88,63 @@ export interface DivergentChartLayout {
   bars: DivergentBarGeom[];
 }
 
+export interface SaldoSparklineGeom {
+  /** "M x,y L x,y ..." — traçado central da linha, pronto pro atributo `d`. */
+  linePath: string;
+  /** Mesmo traçado fechado na base (y=34) — pro preenchimento em gradiente sob a linha. */
+  areaPath: string;
+  /** Ponto mais recente (saldo de hoje) — onde a bolinha de destaque é desenhada. */
+  lastPoint: { x: number; y: number };
+}
+
+const SPARK_WIDTH = 260;
+const SPARK_TOP = 4;
+const SPARK_BOTTOM = 28;
+const SPARK_BASELINE = 34;
+
+/**
+ * Sparkline REAL do KPI "Saldo em bancos" — reconstrói o saldo de fim de cada semana a partir do
+ * saldo atual das contas e do líquido (entrou − saiu) de cada semana, "desfazendo" semana a semana
+ * pra trás a partir de hoje (não existe snapshot histórico de saldo por dia, só o saldo atual + os
+ * movimentos do período). Sem nenhuma semana carregada (ou sem variação no período), cai numa linha
+ * reta neutra na altura do saldo atual — nunca uma curva inventada.
+ */
+export function computeSaldoSparkline(contas: ContaBancaria[], semanas: SemanaMovimento[]): SaldoSparklineGeom {
+  const saldoAtual = saldoTotalContas(contas);
+  const ordenadas = [...semanas].sort((a, b) => a.id - b.id);
+
+  const balances: number[] = [saldoAtual];
+  for (let i = ordenadas.length - 1; i >= 0; i--) {
+    const net = semanaEntrouTotal(ordenadas[i]) - semanaSaiuTotal(ordenadas[i]);
+    balances.unshift(balances[0] - net);
+  }
+
+  const n = balances.length;
+  const minB = Math.min(...balances);
+  const maxB = Math.max(...balances);
+  const range = maxB - minB;
+  const midY = (SPARK_TOP + SPARK_BOTTOM) / 2;
+
+  const points =
+    n <= 1
+      ? [
+          { x: 0, y: midY },
+          { x: SPARK_WIDTH, y: midY },
+        ]
+      : balances.map((b, i) => ({
+          x: (i * SPARK_WIDTH) / (n - 1),
+          y: range === 0 ? midY : SPARK_BOTTOM - ((b - minB) / range) * (SPARK_BOTTOM - SPARK_TOP),
+        }));
+
+  const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
+  const first = points[0];
+  const last = points[points.length - 1];
+  const baseline = SPARK_BASELINE.toFixed(2);
+  const areaPath = `${linePath} L${last.x.toFixed(2)},${baseline} L${first.x.toFixed(2)},${baseline} Z`;
+
+  return { linePath, areaPath, lastPoint: last };
+}
+
 /**
  * Geometria do gráfico "entrou × saiu" (barras divergentes a partir de uma linha zero).
  * Réplica matemática 1:1 da função `svgDivergent` do mockup — mesma escala/proporção.

@@ -1,6 +1,7 @@
 import { ChevronDown, Plus } from 'lucide-react';
 
 import { BancarioBoard } from '@/components/financial/bancario/BancarioBoard';
+import { SimuladorEmprestimo } from '@/components/financial/bancario/SimuladorEmprestimo';
 import { useBancario } from '@/components/financial/bancario/useBancario';
 import { PageHeader } from '@/components/shared';
 
@@ -34,6 +35,8 @@ export function Bancario() {
         onConfirmar={vm.confirmarItem}
         onIgnorar={vm.ignorarItem}
       />
+
+      <SimuladorEmprestimo />
 
       <button
         type="button"

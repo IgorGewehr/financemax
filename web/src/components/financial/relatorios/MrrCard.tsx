@@ -3,23 +3,16 @@ import { Info, TrendingUp } from 'lucide-react';
 import { Surface } from '@/components/ui/Surface';
 import { cn } from '@/lib/utils';
 
-import { DocActions } from './DocActions';
 import { MoneyWhole } from './MoneyWhole';
-import type { AccountantContact, DocGenState, MrrViewModel } from './types';
+import type { MrrViewModel } from './types';
 
 interface MrrCardProps {
   mrr: MrrViewModel;
-  contact: AccountantContact;
-  pdfState: DocGenState;
-  excelState: DocGenState;
-  onGeneratePdf: () => void;
-  onGenerateExcel: () => void;
-  onSend: (channel: 'email' | 'whatsapp') => void;
   className?: string;
 }
 
 /** Card "Assinaturas / MRR" — condicional (só existe pra quem vende serviço recorrente). */
-export function MrrCard({ mrr, contact, pdfState, excelState, onGeneratePdf, onGenerateExcel, onSend, className }: MrrCardProps) {
+export function MrrCard({ mrr, className }: MrrCardProps) {
   return (
     <Surface padding="none" className={cn('flex flex-col p-4 sm:p-[18px]', className)}>
       <div className="mb-3 flex items-start gap-3">
@@ -49,15 +42,6 @@ export function MrrCard({ mrr, contact, pdfState, excelState, onGeneratePdf, onG
           <MoneyWhole centavos={mrr.arrEstimado} className="font-bold" />
         </div>
       </div>
-
-      <DocActions
-        pdfState={pdfState}
-        excelState={excelState}
-        onGeneratePdf={onGeneratePdf}
-        onGenerateExcel={onGenerateExcel}
-        onSend={onSend}
-        contact={contact}
-      />
     </Surface>
   );
 }

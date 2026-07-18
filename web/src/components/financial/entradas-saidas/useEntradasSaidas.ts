@@ -13,28 +13,9 @@ import { addDays, todayIso } from '@/lib/date';
 import { reais } from '@/lib/money';
 import { useToast } from '@/lib/toast';
 
-import {
-  atrasados30MaisDias,
-  buildBarras,
-  buildTimeline,
-  CATEGORIA_MAP_LANCAMENTO_RAPIDO,
-  categoriaDrillStats,
-  fixoVariavelPct,
-  insertLancamentoOrdenado,
-  quemMaisSubiu,
-  totalDespesasCentavos,
-} from './calc';
-import {
-  CATEGORIAS_EXEMPLO,
-  CATEGORIAS_LANCAMENTO_RAPIDO_EXEMPLO,
-  CONTAS_DISPONIVEIS_EXEMPLO,
-  MESES_HISTORICO_EXEMPLO,
-  RESUMO_PDV_MES_EXEMPLO,
-  SPARKLINE_RECEBER_EXEMPLO,
-} from './exemplos';
+import { atrasados30MaisDias, buildTimeline, CATEGORIA_MAP_LANCAMENTO_RAPIDO, CATEGORIAS_LANCAMENTO_RAPIDO, insertLancamentoOrdenado } from './calc';
 import type {
   BridgeNoteData,
-  CategoriaDespesaId,
   ConsultorFornecedoresData,
   ContaDisponivel,
   EntradasSaidasKpis,
@@ -99,9 +80,7 @@ function horizonteAbertoAte(): string {
  * derruba o outro, mesmo padrão de `useBancario`): `timeline` vem de um `GET /financeiro/extrato`
  * do mês corrente; `kpis` (aberto/atrasado/resultado/fechamento + o insight de Fornecedores) vem de
  * um extrato de horizonte largo + `relatorios/dre` (mês atual e anterior) + `fluxo` (saldo
- * projetado de fim de mês, reusado — nunca duplicado). "Para onde foi o dinheiro"/Raio-X do mês
- * continuam ilustrativos (`exemplos.ts`) — o domínio real ainda não agrupa categoria por 6 meses
- * (docs/wiring/financeiro-telas-restantes.md §1).
+ * projetado de fim de mês, reusado — nunca duplicado). Todo número exibido na tela é real.
  */
 export function useEntradasSaidas() {
   const { toast } = useToast();
@@ -111,14 +90,12 @@ export function useEntradasSaidas() {
   const [kpis, setKpis] = useState<Recurso<EntradasSaidasKpis>>(inicial);
   const [bridge, setBridge] = useState<Recurso<BridgeNoteData>>(inicial);
   const [consultorFornecedores, setConsultorFornecedores] = useState<Recurso<ConsultorFornecedoresData>>(inicial);
-  // Select de contas do modal — real via `GET /financeiro/contas-bancarias` (mesmo endpoint do
-  // Bancário); cai pro exemplo ilustrativo só se a chamada falhar (não é um "número" exibido na
-  // tela, é um select de formulário — sem `MockBadge` por não ser dado analítico).
-  const [contasDisponiveis, setContasDisponiveis] = useState<ContaDisponivel[]>(CONTAS_DISPONIVEIS_EXEMPLO);
+  // Select de contas do modal — real via `GET /financeiro/contas-bancarias`; vazio até a chamada
+  // resolver (sem fallback ilustrativo).
+  const [contasDisponiveis, setContasDisponiveis] = useState<ContaDisponivel[]>([]);
 
   const [segFiltro, setSegFiltro] = useState<SegFiltro>('tudo');
   const [filtroAtivo, setFiltroAtivo] = useState<FiltroAtivo | null>(null);
-  const [categoriaSelecionadaId, setCategoriaSelecionadaId] = useState<CategoriaDespesaId | null>(null);
   const [cobradosIds, setCobradosIds] = useState<ReadonlySet<string>>(new Set());
   const [modalBaixaRowId, setModalBaixaRowId] = useState<string | null>(null);
   const [modalLancarAberto, setModalLancarAberto] = useState(false);
@@ -167,7 +144,6 @@ export function useEntradasSaidas() {
 
         const kpisReais: EntradasSaidasKpis = {
           ...kpisAberto,
-          sparklineReceber: SPARKLINE_RECEBER_EXEMPLO,
           resultadoMesCentavos,
           resultadoDeltaPct,
           resultadoComparadoMes: nomeMesDeIso(anterior.de),
@@ -199,28 +175,14 @@ export function useEntradasSaidas() {
     financeiroApi
       .contasBancarias()
       .then((dtos) => {
-        const contas = deContasBancariasParaDisponiveis(dtos);
-        if (contas.length > 0) setContasDisponiveis(contas);
+        setContasDisponiveis(deContasBancariasParaDisponiveis(dtos));
       })
       .catch(() => {
-        // Mantém o fallback ilustrativo — não é um KPI, é um select de formulário.
+        // Select fica vazio — sem fallback ilustrativo.
       });
   }, [carregarTimeline, carregarKpis]);
 
-  const totalDespesas = useMemo(() => totalDespesasCentavos(CATEGORIAS_EXEMPLO), []);
-  const barras = useMemo(() => buildBarras(CATEGORIAS_EXEMPLO), []);
-  const fixoVariavel = useMemo(() => fixoVariavelPct(CATEGORIAS_EXEMPLO), []);
-  const liderAlta = useMemo(() => quemMaisSubiu(CATEGORIAS_EXEMPLO), []);
   const atrasados30 = useMemo(() => atrasados30MaisDias(rows), [rows]);
-
-  const categoriaSelecionada = useMemo(
-    () => (categoriaSelecionadaId ? (CATEGORIAS_EXEMPLO.find((c) => c.id === categoriaSelecionadaId) ?? null) : null),
-    [categoriaSelecionadaId],
-  );
-  const categoriaDrill = useMemo(
-    () => (categoriaSelecionada ? categoriaDrillStats(categoriaSelecionada, totalDespesas) : null),
-    [categoriaSelecionada, totalDespesas],
-  );
 
   const timelineEntries = useMemo<TimelineEntry[]>(() => buildTimeline(rows, segFiltro, filtroAtivo), [rows, segFiltro, filtroAtivo]);
   const totalAtrasados = useMemo(() => rows.filter((r) => r.status === 'atrasado').length, [rows]);
@@ -232,9 +194,6 @@ export function useEntradasSaidas() {
   }
   function limparFiltro() {
     aplicarFiltro(null);
-  }
-  function selecionarCategoria(id: CategoriaDespesaId | null) {
-    setCategoriaSelecionadaId(id);
   }
 
   function abrirBaixa(rowId: string) {
@@ -248,7 +207,7 @@ export function useEntradasSaidas() {
       prev.map((r): LancamentoRow => (r.id === rowId ? { ...r, status: 'pago', conta, origem: 'Baixa manual', diasAtraso: undefined } : r)),
     );
     fecharBaixa();
-    const destino = conta === 'Caixa da loja' ? 'Fluxo de Caixa' : 'Bancário';
+    const destino = contasDisponiveis.find((c) => c.nome === conta)?.tag === 'espécie' ? 'Fluxo de Caixa' : 'Bancário';
     toast(`✓ Baixado em ${conta} — já aparece em ${destino}.`, 'success');
   }
 
@@ -292,10 +251,6 @@ export function useEntradasSaidas() {
     setModalDetalheRowId(null);
   }
 
-  function verExtratoCompleto() {
-    toast('Levaria para Bancário → extrato do período.', 'info');
-  }
-
   return {
     periodoLabel: periodoLabelDeIso(periodoMesAtual().de),
     timelineCarregando: timeline.carregando,
@@ -303,19 +258,11 @@ export function useEntradasSaidas() {
     kpis,
     bridge,
     consultorFornecedores,
-    resumoPdvMes: RESUMO_PDV_MES_EXEMPLO,
-    mesesHistorico: MESES_HISTORICO_EXEMPLO,
-    // REAL — GET /financeiro/contas-bancarias (fallback ilustrativo só se a chamada falhar).
+    // REAL — GET /financeiro/contas-bancarias.
     contasDisponiveis,
-    categoriasLancamentoRapido: CATEGORIAS_LANCAMENTO_RAPIDO_EXEMPLO,
+    categoriasLancamentoRapido: CATEGORIAS_LANCAMENTO_RAPIDO,
 
-    barras,
-    fixoVariavel,
-    liderAlta,
     atrasados30,
-    categoriaSelecionada,
-    categoriaDrill,
-    selecionarCategoria,
     analiseRef,
 
     segFiltro,
@@ -342,7 +289,6 @@ export function useEntradasSaidas() {
     abrirDetalhe,
     fecharDetalhe,
 
-    verExtratoCompleto,
     onClickConsultorFornecedores: () => aplicarFiltro({ type: 'categoria', value: 'cmv-fornecedor', label: 'Fornecedores' }),
     onClickAtrasadosTile: () => aplicarFiltro({ type: 'status', value: 'atrasado', label: 'Atrasados' }),
   };

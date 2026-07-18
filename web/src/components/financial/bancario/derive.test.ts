@@ -11,6 +11,7 @@ import {
   pendingCount,
   pendingTotalCentavos,
   computeDivergentLayout,
+  computeSaldoSparkline,
   type DivergentChartItem,
 } from './derive';
 import type { ContaBancaria, SemanaMovimento } from './types';
@@ -146,6 +147,70 @@ describe('pendingTotalCentavos', () => {
     const banco = [{ valorCentavos: -100 }];
     const sistema = [{ valorCentavos: -100 }];
     expect(pendingTotalCentavos(banco, sistema)).toBe(200); // não 0
+  });
+});
+
+describe('computeSaldoSparkline', () => {
+  it('sem contas e sem semanas cai numa reta neutra na largura toda (nunca curva inventada)', () => {
+    const geom = computeSaldoSparkline([], []);
+    expect(geom.linePath).toBe('M0.00,16.00 L260.00,16.00');
+    expect(geom.lastPoint).toEqual({ x: 260, y: 16 });
+  });
+
+  it('termina exatamente no saldo atual das contas — o último ponto é o hero do KPI', () => {
+    const contas = [conta({ saldoCentavos: 20_000 })];
+    const semanas = [semana({ id: 1, entrouPorDiaCentavos: [5_000], saiuPorDiaCentavos: [1_000] })];
+    const geom = computeSaldoSparkline(contas, semanas);
+    // y=4 é o topo (saldo mais alto) — com 1 semana de líquido +4.000, o saldo de hoje (20.000) é o
+    // maior ponto da série, então a bolinha final encosta no topo.
+    expect(geom.lastPoint.y).toBe(4);
+    expect(geom.lastPoint.x).toBe(260);
+  });
+
+  it('semana sem nenhum movimento (líquido 0) não gera variação — linha reta', () => {
+    const contas = [conta({ saldoCentavos: 10_000 })];
+    const semanas = [semana({ id: 1, entrouPorDiaCentavos: [0], saiuPorDiaCentavos: [0] })];
+    const geom = computeSaldoSparkline(contas, semanas);
+    expect(geom.linePath).toBe('M0.00,16.00 L260.00,16.00');
+  });
+
+  it('reconstrói pra trás a partir do saldo atual — múltiplas semanas geram pontos intermediários', () => {
+    const contas = [conta({ saldoCentavos: 12_000 })];
+    const semanas = [
+      semana({ id: 1, entrouPorDiaCentavos: [2_000], saiuPorDiaCentavos: [0] }), // líquido +2.000
+      semana({ id: 2, entrouPorDiaCentavos: [0], saiuPorDiaCentavos: [1_000] }), // líquido -1.000
+    ];
+    const geom = computeSaldoSparkline(contas, semanas);
+    // 3 pontos: início do mês, fim da semana 1, fim da semana 2 (= saldo atual).
+    // saldo atual 12.000; desfazendo semana 2 (-1.000) → 13.000 no fim da semana 1;
+    // desfazendo semana 1 (+2.000) → 11.000 no início do mês.
+    const pontos = geom.linePath.split(' ').map((seg) => seg.slice(1).split(',').map(Number));
+    expect(pontos).toHaveLength(3);
+    expect(pontos[0][0]).toBe(0);
+    expect(pontos[2][0]).toBe(260);
+    // ordem correta: fim da semana 1 (13.000, o maior saldo) fica mais perto do topo (y menor)
+    // que o início do mês (11.000, o menor) e o fim da semana 2 (12.000, intermediário).
+    expect(pontos[1][1]).toBeLessThan(pontos[2][1]);
+    expect(pontos[2][1]).toBeLessThan(pontos[0][1]);
+  });
+
+  it('ordena as semanas por id antes de reconstruir — ordem de chegada não importa', () => {
+    const contas = [conta({ saldoCentavos: 10_000 })];
+    const emOrdem = computeSaldoSparkline(contas, [
+      semana({ id: 1, entrouPorDiaCentavos: [1_000], saiuPorDiaCentavos: [0] }),
+      semana({ id: 2, entrouPorDiaCentavos: [0], saiuPorDiaCentavos: [500] }),
+    ]);
+    const foraDeOrdem = computeSaldoSparkline(contas, [
+      semana({ id: 2, entrouPorDiaCentavos: [0], saiuPorDiaCentavos: [500] }),
+      semana({ id: 1, entrouPorDiaCentavos: [1_000], saiuPorDiaCentavos: [0] }),
+    ]);
+    expect(foraDeOrdem.linePath).toBe(emOrdem.linePath);
+  });
+
+  it('areaPath fecha o preenchimento na base (y=34) nos dois extremos', () => {
+    const geom = computeSaldoSparkline([conta({ saldoCentavos: 1_000 })], []);
+    expect(geom.areaPath.endsWith('Z')).toBe(true);
+    expect(geom.areaPath).toContain(',34.00');
   });
 });
 

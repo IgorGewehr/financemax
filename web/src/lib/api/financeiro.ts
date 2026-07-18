@@ -265,6 +265,32 @@ export interface TaxasPorFormaDto {
   porForma: TaxaPorFormaDto[];
 }
 
+// ── Simulador de empréstimo (Bancário) — cálculo puro server-side (Tabela Price), sem persistência
+// nem side-effect: o usuário simula, não a IA age (Lei 2 não se aplica aqui). Centavos em `number`
+// PURO (mesma convenção da F0/F1), não `Money` — não há moeda estrangeira envolvida no cálculo.
+
+export interface SimularEmprestimoRequest {
+  valorCentavos: number;
+  /** Taxa de juros ao mês, em basis points (1% a.m. = 100 bps) — evita float em campo de negócio. */
+  taxaJurosMensalBps: number;
+  prazoMeses: number;
+  /** Retorno mensal esperado do equipamento financiado, opcional — habilita o cálculo de payback. */
+  retornoMensalEsperadoCentavos?: number | null;
+}
+
+export type VereditoEmprestimo = 'viavel' | 'apertado' | 'inviavel';
+
+export interface SimulacaoEmprestimoDto {
+  parcelaMensalCentavos: number;
+  custoTotalCentavos: number;
+  jurosTotaisCentavos: number;
+  taxaEfetivaAnualPercent: number;
+  /** Só preenchido quando `retornoMensalEsperadoCentavos` foi informado no request. */
+  paybackMeses: number | null;
+  veredito: VereditoEmprestimo;
+  motivo: string;
+}
+
 // ── Entradas & Saídas / Relatórios / Recorrentes — reconciliação de
 // docs/wiring/financeiro-telas-restantes.md (task #33): extrato unificado, DRE gerencial
 // (competência), contas em aberto (aging) e o detalhe nominal de assinaturas/contas fixas.
@@ -711,6 +737,8 @@ export const financeiroApi = {
     api.post<ConciliacaoDto>('/financeiro/conciliacao/ignorar', { movimentoFinanceiroId, extratoBancarioItemId }),
   taxasPorForma: (de?: string, ate?: string) =>
     api.get<TaxasPorFormaDto>(`/financeiro/taxas-por-forma${periodoQuery(de, ate)}`),
+  simularEmprestimo: (payload: SimularEmprestimoRequest) =>
+    api.post<SimulacaoEmprestimoDto>('/financeiro/bancario/simular-emprestimo', payload),
 
   // Entradas & Saídas / Relatórios — extrato unificado, DRE (competência) e contas em aberto.
   extrato: (de?: string, ate?: string, tipo?: 'entrada' | 'saida', categoria?: string) => {

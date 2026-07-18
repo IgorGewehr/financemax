@@ -2,7 +2,6 @@ import { ChevronDown, Receipt } from 'lucide-react';
 
 import { TODAY_ISO } from '@/components/financial/entradas-saidas/calc';
 import { ConsultorFornecedores } from '@/components/financial/entradas-saidas/ConsultorFornecedores';
-import { GastosPorCategoria } from '@/components/financial/entradas-saidas/GastosPorCategoria';
 import { KpiRow } from '@/components/financial/entradas-saidas/KpiRow';
 import { LinhaDoTempo } from '@/components/financial/entradas-saidas/LinhaDoTempo';
 import { RaioXDoMes } from '@/components/financial/entradas-saidas/RaioXDoMes';
@@ -16,10 +15,11 @@ import { Surface } from '@/components/ui/Surface';
 /**
  * Entradas & saídas — reprodução 1:1 de `docs/ui/mockups/entradas-saidas.html`. Página fina: só
  * compõe seções; todo estado/derivação vive em `useEntradasSaidas` (hook) e `calc.ts` (puro).
- * Linha do tempo, os 4 KPIs de topo (aberto/atrasado/resultado/projeção de caixa) e o Super
- * Consultor de Fornecedores são dado REAL (`GET /financeiro/extrato` + `relatorios/dre` + `fluxo`,
- * ver `useEntradasSaidas.ts`). "Para onde foi o dinheiro"/Raio-X do mês continuam ilustrativos
- * (`exemplos.ts`) — o domínio ainda não agrupa categoria por 6 meses.
+ * Linha do tempo, os 4 KPIs de topo (aberto/atrasado/resultado/projeção de caixa), o Super
+ * Consultor de Fornecedores e "Atrasados 30+" são dado REAL (`GET /financeiro/extrato` +
+ * `relatorios/dre` + `fluxo`, ver `useEntradasSaidas.ts`). "Para onde foi o dinheiro" e o resto de
+ * "Raio-X do mês" (fixo×variável, quem mais subiu) saíram — dependiam de quebra por categoria em 6
+ * meses, que o domínio ainda não expõe.
  */
 export function EntradasSaidas() {
   const vm = useEntradasSaidas();
@@ -66,23 +66,8 @@ export function EntradasSaidas() {
         <ConsultorFornecedores data={vm.consultorFornecedores.dado} onVerDetalhe={vm.onClickConsultorFornecedores} />
       )}
 
-      <section ref={vm.analiseRef} className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-[1.15fr_1fr]">
-        <GastosPorCategoria
-          barras={vm.barras}
-          categoriaSelecionada={vm.categoriaSelecionada}
-          drillStats={vm.categoriaDrill}
-          meses={vm.mesesHistorico}
-          onSelecionar={vm.selecionarCategoria}
-        />
-        <RaioXDoMes
-          categoriaSelecionada={vm.categoriaSelecionada}
-          drillStats={vm.categoriaDrill}
-          fixoPct={vm.fixoVariavel.fixoPct}
-          varPct={vm.fixoVariavel.varPct}
-          liderAlta={vm.liderAlta}
-          atrasados30={vm.atrasados30}
-          onClickAtrasados={vm.onClickAtrasadosTile}
-        />
+      <section ref={vm.analiseRef} className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <RaioXDoMes atrasados30={vm.atrasados30} onClickAtrasados={vm.onClickAtrasadosTile} />
       </section>
 
       {vm.timelineCarregando ? (
@@ -103,8 +88,6 @@ export function EntradasSaidas() {
           onDarBaixa={vm.abrirBaixa}
           onCobrar={vm.cobrar}
           onAbrirDetalhe={vm.abrirDetalhe}
-          onVerExtratoCompleto={vm.verExtratoCompleto}
-          resumoPdvMes={vm.resumoPdvMes}
           modalBaixa={vm.modalBaixa}
           onFecharBaixa={vm.fecharBaixa}
           onConfirmarBaixa={vm.confirmarBaixa}

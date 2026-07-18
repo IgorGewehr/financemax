@@ -1,5 +1,5 @@
 /**
- * Tipos do módulo Financeiro — camada de UI, com dados mock (sem backend).
+ * Tipos do módulo Financeiro — camada de UI, consumindo dados reais do backend.
  * Espelha o vocabulário de `docs/financeiro/financeiro-ux.md` e
  * `docs/financeiro/financeiro-datamodel.md`. Quando o motor .NET existir de
  * verdade, estes tipos migram para contratos gerados (OpenAPI/Zod-like) — por

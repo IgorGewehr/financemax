@@ -17,8 +17,8 @@ export interface UseContasFixasRealResult extends Recurso<ContaFixaResumoReal[]>
 /**
  * Template REAL de "Todas as recorrências" (lente Contas fixas) — `GET /financeiro/recorrentes/fixas`
  * (docs/wiring/financeiro-telas-restantes.md §2/§C, task #33). Só o template — histórico de 12
- * meses/variação/`emAlerta` do painel `PainelContasFixas` continua ilustrativo (`RECORRENTES_MOCK`),
- * o read-model de cruzamento ainda não existe (ver XML doc de `ContasFixasService`).
+ * meses/variação/`emAlerta` não têm read-model ainda (ver XML doc de `ContasFixasService`); o
+ * "Retrato do fixo" ilustrativo que dependia disso foi removido da tela.
  */
 export function useContasFixasReal(): UseContasFixasRealResult {
   const [dado, setDado] = useState<ContaFixaResumoReal[] | null>(null);
