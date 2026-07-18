@@ -4,12 +4,10 @@
     <ProjectReference Include="..\..\..\SharedKernel\SistemaX.SharedKernel\SistemaX.SharedKernel.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.10" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.10" />
-  </ItemGroup>
-
-  <!-- Necessário para IEndpointRouteBuilder/HttpContext em IModuleEndpoints (Bridge/Http.cs).
+  <!-- Necessário para IEndpointRouteBuilder/HttpContext em IModuleEndpoints (Bridge/Http.cs), e
+       também cobre IConfiguration/IServiceCollection usados neste projeto — o shared framework
+       ASP.NET Core já embute Microsoft.Extensions.{Configuration,DependencyInjection}.Abstractions,
+       então os PackageReference explícitos eram redundantes (NU1510) e foram removidos.
        FrameworkReference funciona em projeto de biblioteca comum (Sdk Microsoft.NET.Sdk) — não
        exige Sdk.Web; só o Host final (que hospeda o Kestrel) precisa do Sdk.Web. -->
   <ItemGroup>

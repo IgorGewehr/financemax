@@ -49,7 +49,7 @@ public sealed class CorrenteDeReceitaMigrationTests : IDisposable
         using (var connection = _connectionFactory.OpenConnection())
         using (var transaction = connection.BeginTransaction())
         {
-            new FinanceiroSchemaMigrationV1().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
+            await new FinanceiroSchemaMigrationV1().AplicarAsync(connection, transaction, CancellationToken.None);
 
             InserirContaAReceberLegada(connection, transaction, "conta-venda", "sale", "servicos");
             InserirContaAReceberLegada(connection, transaction, "conta-os", "appointment", "servicos");
@@ -63,10 +63,10 @@ public sealed class CorrenteDeReceitaMigrationTests : IDisposable
         using (var connection = _connectionFactory.OpenConnection())
         using (var transaction = connection.BeginTransaction())
         {
-            new FinanceiroSchemaMigrationV16().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
-            new FinanceiroSchemaMigrationV21().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
-            new FinanceiroSchemaMigrationV23().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
-            new FinanceiroSchemaMigrationV30().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
+            await new FinanceiroSchemaMigrationV16().AplicarAsync(connection, transaction, CancellationToken.None);
+            await new FinanceiroSchemaMigrationV21().AplicarAsync(connection, transaction, CancellationToken.None);
+            await new FinanceiroSchemaMigrationV23().AplicarAsync(connection, transaction, CancellationToken.None);
+            await new FinanceiroSchemaMigrationV30().AplicarAsync(connection, transaction, CancellationToken.None);
             transaction.Commit();
         }
 
@@ -93,7 +93,7 @@ public sealed class CorrenteDeReceitaMigrationTests : IDisposable
         using (var connection = _connectionFactory.OpenConnection())
         using (var transaction = connection.BeginTransaction())
         {
-            new FinanceiroSchemaMigrationV2().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
+            await new FinanceiroSchemaMigrationV2().AplicarAsync(connection, transaction, CancellationToken.None);
 
             InserirContaAPagarLegada(connection, transaction, "conta-comissao", "comissoes");
             InserirContaAPagarLegada(connection, transaction, "conta-cmv", "cmv-fornecedor");
@@ -105,8 +105,8 @@ public sealed class CorrenteDeReceitaMigrationTests : IDisposable
         using (var connection = _connectionFactory.OpenConnection())
         using (var transaction = connection.BeginTransaction())
         {
-            new FinanceiroSchemaMigrationV17().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
-            new FinanceiroSchemaMigrationV31().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
+            await new FinanceiroSchemaMigrationV17().AplicarAsync(connection, transaction, CancellationToken.None);
+            await new FinanceiroSchemaMigrationV31().AplicarAsync(connection, transaction, CancellationToken.None);
             transaction.Commit();
         }
 
@@ -131,8 +131,8 @@ public sealed class CorrenteDeReceitaMigrationTests : IDisposable
         using (var connection = _connectionFactory.OpenConnection())
         using (var transaction = connection.BeginTransaction())
         {
-            new IntegrationEventsSchemaMigration().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
-            new FinanceiroSchemaMigrationV8().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
+            await new IntegrationEventsSchemaMigration().AplicarAsync(connection, transaction, CancellationToken.None);
+            await new FinanceiroSchemaMigrationV8().AplicarAsync(connection, transaction, CancellationToken.None);
             transaction.Commit();
         }
 
@@ -172,8 +172,8 @@ public sealed class CorrenteDeReceitaMigrationTests : IDisposable
         using (var connection = _connectionFactory.OpenConnection())
         using (var transaction = connection.BeginTransaction())
         {
-            new FinanceiroSchemaMigrationV19().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
-            new FinanceiroSchemaMigrationV37().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
+            await new FinanceiroSchemaMigrationV19().AplicarAsync(connection, transaction, CancellationToken.None);
+            await new FinanceiroSchemaMigrationV37().AplicarAsync(connection, transaction, CancellationToken.None);
             transaction.Commit();
         }
 

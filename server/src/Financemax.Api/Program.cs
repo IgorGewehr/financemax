@@ -10,9 +10,12 @@ using SistemaX.Modules.Financeiro.Infrastructure.Seed;
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 // financemax F1 — servidor Financeiro headless. Molde: SistemaX.Host.Desktop/Program.cs, reduzido
 // ao que um container Linux precisa: sem Velopack (updater), sem Photino (janela), sem boot-token/
-// PIN (StubAuthMiddleware até a F2 trazer e-mail+senha real). Kestrel escuta 0.0.0.0:8080 —
-// DENTRO do container isso é seguro (docker-compose.yml não publica a porta pra fora; o acesso de
-// verdade em produção é via Cloudflare Tunnel, ARQUITETURA.md §4).
+// PIN (StubAuthMiddleware até a F2 trazer e-mail+senha real). Kestrel escuta 0.0.0.0:8080 dentro
+// do container. Hoje (F1) o docker-compose.yml PUBLICA essa porta pra fora ("ports:") porque
+// cloudflared/Litestream ainda não existem no compose — é a topologia provisória de F1 (uso
+// local/VM sem túnel). O plano de produção (ARQUITETURA.md §4) é cloudflared-only, sem "ports:"
+// publicada: isso entra na F2, junto com a auth de verdade; quando endurecer, remover "ports:" e
+// atualizar este comentário.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 var iniciadoEm = DateTimeOffset.UtcNow;
@@ -48,8 +51,10 @@ builder.Host.UseSerilog((_, loggerConfig) =>
         .WriteTo.Console();
 });
 
-// 0.0.0.0:8080 — bind de container (ARQUITETURA.md §4: Kestrel sem "ports:" expostas no compose;
-// só cloudflared fala com a API por fora). FINANCEMAX_PORT sobrepõe em dev local.
+// 0.0.0.0:8080 — bind de container. F1: docker-compose.yml publica essa porta ("ports:") pra
+// acesso local/VM direto (cloudflared ainda não existe no compose). Plano de produção
+// (ARQUITETURA.md §4) é remover "ports:" e falar só via Cloudflare Tunnel — isso é F2.
+// FINANCEMAX_PORT sobrepõe em dev local.
 var porta = int.TryParse(Environment.GetEnvironmentVariable("FINANCEMAX_PORT"), out var portaEnv) ? portaEnv : 8080;
 builder.WebHost.ConfigureKestrel(o => o.Listen(IPAddress.Any, porta));
 

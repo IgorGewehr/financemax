@@ -5,12 +5,10 @@
     <ProjectReference Include="..\..\Abstractions\SistemaX.Modules.Abstractions\SistemaX.Modules.Abstractions.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.10" />
-  </ItemGroup>
-
-  <!-- Endpoints/FinanceiroEndpointsModule.cs mapeia rotas minimal-API (IEndpointRouteBuilder) —
-       ver nota equivalente em SistemaX.Modules.Abstractions.csproj. -->
+  <!-- Endpoints/FinanceiroEndpointsModule.cs mapeia rotas minimal-API (IEndpointRouteBuilder) e
+       usa IServiceCollection/DI — ambos já vêm via FrameworkReference abaixo (o shared framework
+       ASP.NET Core embute Microsoft.Extensions.DependencyInjection.Abstractions), então o
+       PackageReference explícito era redundante (NU1510) e foi removido. -->
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
