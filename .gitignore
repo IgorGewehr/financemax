@@ -1,0 +1,19 @@
+# .NET
+bin/
+obj/
+*.user
+# Node / Vite
+node_modules/
+dist/
+# Tauri
+src-tauri/target/
+# Segredos e dados
+.env
+.env.*
+!.env.example
+*.db
+*.db-shm
+*.db-wal
+data/
+# OS
+.DS_Store

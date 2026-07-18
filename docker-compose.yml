@@ -1,0 +1,27 @@
+# financemax — F1: só o serviço `api` (servidor Financeiro headless). cloudflared/litestream/
+# postgres (ARQUITETURA.md §4) entram em fatias futuras — F1 é rodar local/VM com SQLite.
+services:
+  api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    image: financemax-api:local
+    restart: unless-stopped
+    ports:
+      - "${FINANCEMAX_PORT:-8080}:8080"
+    volumes:
+      - financemax-data:/data
+    environment:
+      - Financemax__DataDir=/data
+      - Financemax__BusinessId=${FINANCEMAX_BUSINESS_ID:-dev-tenant}
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+volumes:
+  financemax-data: {}

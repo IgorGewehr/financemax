@@ -1,0 +1,17 @@
+<Project>
+  <!--
+    Propriedades comuns a TODOS os projetos financemax/server.
+    TargetFramework fica em cada .csproj (net10.0). Aqui só o que é transversal.
+    Espelha o Directory.Build.props do sistemax (fonte de reuso) — mantém o mesmo perfil de build
+    para os projetos copiados byte-a-byte.
+  -->
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <Deterministic>true</Deterministic>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+</Project>

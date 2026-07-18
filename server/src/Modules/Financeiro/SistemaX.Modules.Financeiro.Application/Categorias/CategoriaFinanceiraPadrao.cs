@@ -1,0 +1,64 @@
+using SistemaX.Modules.Financeiro.Domain.Contabil;
+
+namespace SistemaX.Modules.Financeiro.Application.Categorias;
+
+/// <summary>
+/// Slugs de categoria pré-cadastrada usados pelos handlers de evento de integração para
+/// classificar o fato financeiro que criam. SIMPLIFICAÇÃO DELIBERADA DO MVP: o modelo-alvo
+/// (docs/financeiro-features.md §4.11) tem <c>Categoria</c> como entidade por-tenant, resolvida
+/// via <c>ICategoriaRepository.BuscarPorSlugAsync(businessId, slug)</c> — aqui usamos o slug
+/// diretamente como <c>CategoriaId</c> porque o catálogo de handlers do MVP não depende de
+/// cadastro prévio por tenant para compilar/testar a lógica financeira em si. Trocar por
+/// resolução real de <c>Categoria</c> é um passo de Fase 2 que não muda a forma dos handlers.
+/// </summary>
+public static class CategoriaFinanceiraPadrao
+{
+    public const string Servicos = "servicos";
+    public const string Comissoes = "comissoes";
+    public const string CustoMercadoriaVendida = "cmv-fornecedor";
+    public const string Delivery = "delivery";
+    public const string DespesaComPessoal = "despesa-com-pessoal";
+    public const string EstornoVenda = "estorno-venda";
+
+    /// <summary>
+    /// Receita de assinatura (MRR) — primeiro passo, aditivo, em direção à dimensão "corrente de
+    /// receita" (docs/financeiro/revisao-domain-fit-cnpj.md P0-1: recorrente × serviço × comércio).
+    /// Por ora só distingue assinatura do resto — venda/OS continuam em <see cref="Servicos"/> até
+    /// a corrente completa (enum <c>CorrenteReceita</c> propagado por evento) ser construída.
+    /// Não participa de nenhum filtro de custo/despesa do DRE (só a receita usa esta categoria),
+    /// então introduzi-la é seguro: não muda nenhum número já calculado, só habilita a quebra
+    /// receita recorrente × receita operacional em <see cref="ReadModels.DreGerencialService"/>.
+    /// </summary>
+    public const string ReceitaRecorrente = "receita-recorrente";
+
+    /// <summary>
+    /// P1-6 (docs/financeiro/revisao-domain-fit-cnpj.md) — rótulo da linha "despesas financeiras
+    /// (MDR)" que <see cref="ReadModels.DreGerencialService"/> devolve. Não é <c>CategoriaId</c> de
+    /// nenhuma <c>ContaAPagar</c> — o MDR é derivado AO VIVO de <c>fato_recebiveis</c> (Σ bruto −
+    /// líquido do período, já calculado pelo lar único <c>FormaDePagamento</c>, nunca recomputado
+    /// em paralelo), então esta constante só nomeia a linha para a UI/relatórios.
+    /// </summary>
+    public const string TaxasDeCartao = "taxas-de-cartao";
+
+    /// <summary>
+    /// Análise por Projeto/Imobilizado (docs/financeiro/design-analise-por-projeto.md §3.3/§4.4,
+    /// docs/financeiro/design-imobilizado-roi.md §3.1/§4.4) — categoria da <c>ContaAPagar</c> nascida
+    /// junto de um <c>AtivoDeCapital</c> (a compra parcelada). Espelha o tratamento de
+    /// <see cref="CustoMercadoriaVendida"/>: excluída da <c>DespesaOperacional</c> do
+    /// <see cref="ReadModels.DreGerencialService"/> (é balanço — conta 1.3 — não resultado) e
+    /// direcionada para <c>PlanoDeContasPadrao.AtivosDeCapital</c> em vez de <c>CustoDespesa</c> por
+    /// <c>LancamentoContabilFactory.DeContaAPagar</c>.
+    /// </summary>
+    public const string AtivoDeCapital = LancamentoContabilFactory.CategoriaAtivoDeCapital;
+
+    /// <summary>
+    /// Alienação de ativo (fatia I4, docs/financeiro/design-imobilizado-roi.md §4.6) — categoria da
+    /// <c>ContaAReceber</c> criada quando um <c>AtivoDeCapital</c> é vendido (<c>AtivoDeCapital.Baixar</c>
+    /// com <c>valorVenda</c>). Espelha o desvio de <see cref="AtivoDeCapital"/> na outra direção:
+    /// EXCLUÍDA da <c>ReceitaBruta</c> do <see cref="ReadModels.DreGerencialService"/> (vender a
+    /// bancada usada não é performance operacional) e fora do Radar do Simples (não é receita de
+    /// venda/OS/assinatura). O <c>MovimentoFinanceiro</c> de Entrada que liquida essa conta É capturado
+    /// normalmente pelo <c>RoiDoNegocioService</c> em <c>F_m</c> — os proceeds da venda contam no fluxo.
+    /// </summary>
+    public const string AlienacaoDeAtivo = "alienacao-de-ativo";
+}
