@@ -70,6 +70,20 @@ public static class SimulacaoDeEmprestimo
 
     public enum VeredictoViabilidade { Viavel, Apertado, Inviavel }
 
+    /// <param name="Veredito">Ver §-classe.</param>
+    /// <param name="Motivo">Frase pronta narrando o veredito — usar isto na UI em vez de recompor
+    /// texto a partir dos números crus (§-classe).</param>
+    /// <param name="ParcelaVsFolgaPercent">
+    /// <b>NÃO é sempre um percentual real.</b> Vale <see cref="SentinelaSemFolga"/> (999,9) quando a
+    /// folga mensal do negócio já é zero/negativa hoje — um teto arbitrário só para manter o campo
+    /// <c>double</c> finito no wire (nunca <c>Infinity</c>/<c>NaN</c> em JSON), NÃO "a parcela
+    /// consome 999,9% da folga". Qualquer consumidor (web/relatório) que formate este número para
+    /// exibição DEVE checar <paramref name="Veredito"/> == <see cref="VeredictoViabilidade.Inviavel"/>
+    /// primeiro e, nesse caso, mostrar o <paramref name="Motivo"/> (já narrado por extenso) em vez do
+    /// percentual bruto.
+    /// </param>
+    /// <param name="PaybackMeses">Meses até o equipamento se pagar sozinho — <c>null</c> sem retorno
+    /// informado (§-classe).</param>
     public sealed record Viabilidade(
         VeredictoViabilidade Veredito, string Motivo, double ParcelaVsFolgaPercent, int? PaybackMeses);
 
