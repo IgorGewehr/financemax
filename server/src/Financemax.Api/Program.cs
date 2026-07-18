@@ -72,8 +72,22 @@ builder.Services.AddIdentidadeAuth(jwtOptions);
 
 var registry = FinancemaxHost.RegistrarModulos(builder.Services, CamadaExecucao.Nuvem, builder.Configuration, businessId);
 
+// CORS — o app web (Vite dev em :5173, WebView do Tauri) chama esta API de OUTRA origem; sem isso
+// o browser bloqueia o login (curl/testes passam por não checarem CORS, por isso não pegamos antes).
+// Origens explícitas via FINANCEMAX_CORS_ORIGINS (csv) — nunca AllowAnyOrigin num servidor
+// multi-usuário. Default cobre o dev Vite + o WebView do Tauri; a URL do Cloudflare Tunnel entra aqui.
+var corsOrigens = (Environment.GetEnvironmentVariable("FINANCEMAX_CORS_ORIGINS")
+        ?? "http://localhost:5173,http://127.0.0.1:5173,http://localhost:1420,tauri://localhost,https://tauri.localhost")
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+builder.Services.AddCors(o => o.AddPolicy("financemax", p => p
+    .WithOrigins(corsOrigens)
+    .AllowAnyHeader()
+    .AllowAnyMethod()
+    .AllowCredentials()));
+
 var app = builder.Build();
 
+app.UseCors("financemax");
 app.UseAuthentication();
 app.UseMiddleware<SessaoClaimsMiddleware>();
 app.UseRateLimiter();
