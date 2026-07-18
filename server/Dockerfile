@@ -33,12 +33,19 @@ RUN dotnet publish src/Financemax.Api/Financemax.Api.csproj \
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS runtime
 WORKDIR /app
 
+# ICU + globalização: o alpine do .NET roda em modo INVARIANTE por padrão (sem ICU), e aí
+# CultureInfo("pt-BR") — usado pra formatar dinheiro nas narrações (consultor, simulador) —
+# lança CultureNotFoundException. Um financeiro brasileiro PRECISA de pt-BR. Instala o ICU e
+# desliga o modo invariante. (Bug pego só no container: os testes rodam no host, que já tem ICU.)
+RUN apk add --no-cache icu-libs icu-data-full
+
 # usuário não-root — a imagem base já traz o grupo/usuário "app" (uid 64198 no alpine da MS).
 RUN mkdir -p /data && chown -R app:app /data
 USER app
 
 COPY --from=build --chown=app:app /app/publish .
 
+ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
 ENV ASPNETCORE_URLS=http://+:8080
 ENV Financemax__DataDir=/data
 EXPOSE 8080
