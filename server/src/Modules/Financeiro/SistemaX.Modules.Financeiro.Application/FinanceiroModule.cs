@@ -146,6 +146,10 @@ public sealed class FinanceiroModule : IModule
         services.AddScoped<InadimplenciaService>();
         services.AddScoped<RadarDoSimplesService>();
 
+        // Simulador de empréstimo (Bancário) — viabilidade contra a folga mensal real do negócio
+        // (DreGerencialService.ResultadoOperacional), não contra o valor do empréstimo cru.
+        services.AddScoped<SimuladorDeEmprestimoService>();
+
         // Lentes verticais opt-in (multi-MEI, docs/financeiro/ideias-matemonstro.md) — cada uma é
         // um read-model pequeno reusando dado/fórmula que já existe (fato_margem_produto,
         // ApontamentoDeTempo, ContaAReceber.TecnicoId, FormaDePagamento, RadarDoSimplesService);

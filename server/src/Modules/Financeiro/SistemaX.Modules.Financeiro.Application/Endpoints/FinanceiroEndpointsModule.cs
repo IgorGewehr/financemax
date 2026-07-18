@@ -30,6 +30,12 @@ public sealed record ConciliacaoDto(string Id, string MovimentoFinanceiroId, str
         conciliacao.Id, conciliacao.MovimentoFinanceiroId, conciliacao.ExtratoBancarioItemId, conciliacao.Status.ToString(), conciliacao.ConciliadoEm);
 }
 
+/// <summary>Request de fio do Simulador de Empréstimo (Bancário) — <c>retornoMensalEsperadoCentavos</c>
+/// é opcional (o quanto o equipamento financiado gera/economiza por mês); sem ele, a viabilidade
+/// compara só a parcela contra a folga mensal atual, sem crédito de retorno.</summary>
+public sealed record SimularEmprestimoRequest(
+    long ValorCentavos, int TaxaJurosMensalBps, int PrazoMeses, long? RetornoMensalEsperadoCentavos = null);
+
 public sealed record ConciliarMovimentoRequest(string MovimentoFinanceiroId, string ExtratoBancarioItemId, bool Automatico = false);
 
 public sealed record IgnorarConciliacaoRequest(string MovimentoFinanceiroId, string ExtratoBancarioItemId);
@@ -479,6 +485,45 @@ public sealed class FinanceiroEndpointsModule : IModule, IModuleEndpoints
                 .CalcularAsync(businessId, desde.InicioDoDia(), ateQuando.FimDoDia(), ct)
                 .ConfigureAwait(false);
             return Results.Ok(resultado);
+        }).RequerPermissao(Modulo.Financeiro, Acao.Ver);
+
+        // Simulador de empréstimo (Bancário) — "vai dar bom pedir esse empréstimo pra comprar o
+        // equipamento?". PMT/juros/taxa efetiva são a Tabela Price de sempre; o diferencial é a
+        // viabilidade comparar a parcela contra a FOLGA MENSAL REAL do negócio (DreGerencialService,
+        // buscada por SimuladorDeEmprestimoService — nunca um número que o cliente informa: folga é
+        // fato do sistema, não input). Leitura pura, sem efeito colateral nenhum — Ver, não Editar.
+        api.MapPost("/financeiro/bancario/simular-emprestimo", async (
+            HttpContext http,
+            SimularEmprestimoRequest corpo,
+            SimuladorDeEmprestimoService servico,
+            CancellationToken ct) =>
+        {
+            var erros = new Dictionary<string, string[]>();
+            if (corpo.ValorCentavos <= 0) erros["valorCentavos"] = ["Valor do empréstimo deve ser positivo."];
+            if (corpo.PrazoMeses <= 0) erros["prazoMeses"] = ["Prazo deve ser positivo."];
+            if (corpo.TaxaJurosMensalBps < 0) erros["taxaJurosMensalBps"] = ["Taxa de juros não pode ser negativa."];
+            if (corpo.RetornoMensalEsperadoCentavos is < 0) erros["retornoMensalEsperadoCentavos"] = ["Retorno esperado não pode ser negativo."];
+            if (erros.Count > 0) return Results.ValidationProblem(erros);
+
+            var businessId = http.ObterBusinessId();
+            var resultado = await servico
+                .SimularAsync(businessId, corpo.ValorCentavos, corpo.TaxaJurosMensalBps, corpo.PrazoMeses, corpo.RetornoMensalEsperadoCentavos, ct)
+                .ConfigureAwait(false);
+
+            return Results.Ok(new
+            {
+                parcelaCentavos = resultado.ParcelaCentavos,
+                custoTotalCentavos = resultado.CustoTotalCentavos,
+                jurosTotalCentavos = resultado.JurosTotalCentavos,
+                taxaEfetivaAnualBps = resultado.TaxaEfetivaAnualBps,
+                viabilidade = new
+                {
+                    veredito = resultado.Viabilidade.Veredito.ToString().ToLowerInvariant(),
+                    motivo = resultado.Viabilidade.Motivo,
+                    parcelaVsFolgaPercent = resultado.Viabilidade.ParcelaVsFolgaPercent,
+                    paybackMeses = resultado.Viabilidade.PaybackMeses,
+                },
+            });
         }).RequerPermissao(Modulo.Financeiro, Acao.Ver);
 
         // Entradas & Saídas (docs/wiring/financeiro-telas-restantes.md §1/§A) — extrato unificado
