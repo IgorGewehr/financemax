@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using SistemaX.Infrastructure.Local.DependencyInjection;
 using SistemaX.Modules.Abstractions;
 using SistemaX.Modules.Abstractions.Consultor;
+using SistemaX.Modules.Abstractions.Consultor.Llm;
 using SistemaX.Modules.Abstractions.Runtime;
 using SistemaX.Modules.Financeiro.Application;
 using SistemaX.Modules.Financeiro.Application.Endpoints;
@@ -47,10 +48,25 @@ public static class FinancemaxHost
         services.AddSingleton<IIntegrationEventBus, InProcessIntegrationEventBus>();
 
         // Super Consultor — orquestrador module-agnostic (mesmo racional do sistemax: não pertence
-        // a nenhum IModule específico, vive no composition root). Narrador template determinístico
-        // por enquanto — o IConsultorNarrador via LLM é F2 (junto com auth email+senha).
+        // a nenhum IModule específico, vive no composition root). NarradorLlm é o IConsultorNarrador
+        // registrado — reescreve as frases determinísticas com gpt-4o-mini, com
+        // NarradorTemplate SEMPRE por baixo como piso/fallback (sem chave, orçamento estourado,
+        // rede falha, resposta inválida ou reprovada na validação anti-alucinação — ver
+        // NarradorLlm). OPENAI_API_KEY ausente é degradação graciosa (checada dentro do
+        // NarradorLlm, não aqui): o servidor sobe normal, só narra 100% via template.
         services.AddSingleton<IConsultorInsightCache, InMemoryConsultorInsightCache>();
-        services.AddScoped<IConsultorNarrador, NarradorTemplate>();
+        services.AddSingleton<NarradorTemplate>();
+
+        var openAiOpcoes = OpenAiOptions.Resolver(configuracao);
+        services.AddSingleton(openAiOpcoes);
+        services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<IConsultorOrcamentoLlm, InMemoryConsultorOrcamentoLlm>();
+        services.AddSingleton<IConsultorNarracaoLlmCache, InMemoryConsultorNarracaoLlmCache>();
+        services.AddHttpClient<IOpenAiChatClient, OpenAiHttpChatClient>(http =>
+        {
+            http.Timeout = TimeSpan.FromSeconds(15);
+        });
+        services.AddScoped<IConsultorNarrador, NarradorLlm>();
         services.AddScoped<ConsultorService>();
 
         // Infraestrutura local (SQLite + UoW/sessão + outbox + backup + migrations + crash-recovery)
