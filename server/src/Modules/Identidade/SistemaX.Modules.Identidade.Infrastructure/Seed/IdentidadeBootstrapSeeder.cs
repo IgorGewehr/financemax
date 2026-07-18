@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SistemaX.Modules.Abstractions.Autorizacao;
@@ -10,15 +9,20 @@ namespace SistemaX.Modules.Identidade.Infrastructure.Seed;
 
 /// <summary>
 /// Semente de bootstrap de Identidade (§6 do escopo F2) — IDEMPOTENTE, roda em TODO boot (mesmo
-/// espírito de <c>FinanceiroBootstrapSeeder</c>): sem ela, uma instalação nova nasce sem NENHUM
-/// usuário e ninguém consegue logar pela primeira vez (galinha-e-ovo — só um usuário já logado
-/// pode criar outro via <c>POST /api/usuarios</c>).
+/// espírito de <c>FinanceiroBootstrapSeeder</c>), mas SÓ QUANDO <c>FINANCEMAX_ADMIN_SENHA_INICIAL</c>
+/// está setado. Esse gate é o que mantém este seed COERENTE com o onboarding self-service
+/// (<c>RegistrarUseCase</c>): em PRODUÇÃO o dono não seta essa env — a instalação nasce com ZERO
+/// usuários e é o próprio <c>POST /api/auth/registrar</c> (first-run, sem convite) quem cria o
+/// founder de verdade, com a senha que o dono escolheu. Sem este gate, este método ANTES rodava
+/// incondicionalmente em todo boot e, na ausência da env, semeava um
+/// <c>admin@financemax.local</c> com senha ALEATÓRIA (só visível no log) — como isto acontece no
+/// Program.cs ANTES do primeiro request ser servido, a instalação nunca chegava a ter zero
+/// usuários no momento em que o dono batesse em <c>/registrar</c>, e o first-run nunca disparava.
 ///
-/// Cria UM usuário founder (<c>admin@financemax.local</c> por padrão) com senha inicial CONHECIDA
-/// (via <c>FINANCEMAX_ADMIN_SENHA_INICIAL</c>) ou GERADA (aleatória, logada uma única vez no
-/// primeiro boot — nunca gravada em lugar nenhum além do log) e <c>MustChangePassword=true</c>: o
-/// dono troca a senha no primeiro login e a inicial deixa de valer para sempre depois disso
-/// (nenhuma pista fica no banco).
+/// DEV/TESTE preserva o comportamento de sempre: quem quer o admin pré-semeado (com senha
+/// CONHECIDA, nunca mais gerada aleatoriamente) simplesmente seta a env — ver <c>.env.example</c>
+/// e <c>FinancemaxApiFactory</c> (testes de integração), que já setavam as duas variáveis antes
+/// desta mudança e continuam setando.
 /// </summary>
 public static class IdentidadeBootstrapSeeder
 {
@@ -26,6 +30,12 @@ public static class IdentidadeBootstrapSeeder
 
     public static async Task SemearAsync(IServiceProvider provider, string businessId, CancellationToken ct = default)
     {
+        var senhaConhecida = Environment.GetEnvironmentVariable("FINANCEMAX_ADMIN_SENHA_INICIAL");
+        if (string.IsNullOrWhiteSpace(senhaConhecida))
+        {
+            return;
+        }
+
         await using var scope = provider.CreateAsyncScope();
         var sp = scope.ServiceProvider;
 
@@ -46,11 +56,8 @@ public static class IdentidadeBootstrapSeeder
             ? emailEnv
             : EmailPadrao;
 
-        var senhaConhecida = Environment.GetEnvironmentVariable("FINANCEMAX_ADMIN_SENHA_INICIAL");
-        var senha = string.IsNullOrWhiteSpace(senhaConhecida) ? GerarSenhaAleatoria() : senhaConhecida;
-
         var agora = relogio.Agora();
-        var criado = Usuario.Criar(businessId, "Administrador", email, SenhaHasher.Hash(senha), Papel.Founder, agora, ativo: true, mustChangePassword: true);
+        var criado = Usuario.Criar(businessId, "Administrador", email, SenhaHasher.Hash(senhaConhecida), Papel.Founder, agora, ativo: true, mustChangePassword: true);
         if (criado.Falha)
         {
             logger?.LogError("Falha ao semear usuário admin inicial: {Erro}", criado.Erro.Mensagem);
@@ -59,32 +66,6 @@ public static class IdentidadeBootstrapSeeder
 
         await usuarios.SalvarAsync(criado.Valor, ct).ConfigureAwait(false);
 
-        if (string.IsNullOrWhiteSpace(senhaConhecida))
-        {
-            // Só aparece no log quando a senha foi GERADA (não quando veio de
-            // FINANCEMAX_ADMIN_SENHA_INICIAL, que o operador já conhece) — é a ÚNICA vez que esta
-            // senha existe em texto plano em qualquer lugar; se for perdida, o único caminho é
-            // apagar o usuário direto no banco e deixar o boot semear de novo.
-            logger?.LogWarning(
-                "financemax — usuário administrador inicial criado: e-mail={Email} senha={Senha} " +
-                "(TROQUE NO PRIMEIRO LOGIN — esta senha não aparece em nenhum outro lugar).",
-                email, senha);
-        }
-        else
-        {
-            logger?.LogInformation("financemax — usuário administrador inicial criado a partir de FINANCEMAX_ADMIN_SENHA_INICIAL (e-mail={Email}).", email);
-        }
-    }
-
-    /// <summary>24 caracteres, alfabeto sem ambíguos (sem 0/O/1/l/I) — pensada para ser lida e
-    /// digitada por um humano direto do log, não só copiada.</summary>
-    private static string GerarSenhaAleatoria()
-    {
-        const string alfabeto = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
-        var bytes = RandomNumberGenerator.GetBytes(24);
-        return string.Create(24, bytes, (span, buf) =>
-        {
-            for (var i = 0; i < span.Length; i++) span[i] = alfabeto[buf[i] % alfabeto.Length];
-        });
+        logger?.LogInformation("financemax — usuário administrador inicial criado a partir de FINANCEMAX_ADMIN_SENHA_INICIAL (e-mail={Email}).", email);
     }
 }

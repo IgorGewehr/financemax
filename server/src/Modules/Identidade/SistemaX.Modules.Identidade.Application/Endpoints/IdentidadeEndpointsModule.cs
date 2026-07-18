@@ -8,6 +8,7 @@ using SistemaX.Modules.Abstractions.Autorizacao;
 using SistemaX.Modules.Abstractions.Runtime;
 using SistemaX.Modules.Identidade.Application.CasosDeUso;
 using SistemaX.Modules.Identidade.Application.Ports;
+using SistemaX.Modules.Identidade.Domain.Convites;
 using SistemaX.Modules.Identidade.Domain.Usuarios;
 using SistemaX.SharedKernel;
 
@@ -35,6 +36,23 @@ public sealed record TokensResponse(string AccessToken, string RefreshToken, Dat
 public sealed record CriarUsuarioRequest(string Nome, string Email, string Senha, string Papel);
 
 public sealed record AtualizarUsuarioRequest(string? Papel = null, bool? Ativo = null, string? NovaSenha = null);
+
+public sealed record RegistrarRequest(string Nome, string Email, string Senha, string? ConviteToken = null);
+
+public sealed record CriarConviteRequest(string Email, string Papel);
+
+/// <summary>Nunca inclui <c>TokenHash</c>/<c>CriadoPorUsuarioId</c> — só o que a UI de "convites
+/// pendentes" precisa mostrar.</summary>
+public sealed record ConviteDto(string Id, string Email, string Papel, DateTimeOffset CriadoEm, DateTimeOffset ExpiraEm)
+{
+    public static ConviteDto DeDominio(Convite c) => new(c.Id, c.Email, c.Papel.ToString(), c.CriadoEm, c.ExpiraEm);
+}
+
+/// <summary>O <see cref="Token"/> BRUTO só aparece aqui — única resposta HTTP que o carrega (ver
+/// <c>ConviteEmitido</c>). O front monta <c>/aceitar-convite?token=...</c> e repassa ao convidado.</summary>
+public sealed record ConviteEmitidoResponse(string Token, string Email, string Papel, DateTimeOffset ExpiraEm);
+
+public sealed record ConvitePreviewResponse(bool Valido, string? Email, string? Papel, string? Motivo);
 
 /// <summary>
 /// Terceiro <see cref="IModule"/> de Identidade — só rotas, mesmo molde de
@@ -91,6 +109,27 @@ public sealed class IdentidadeEndpointsModule : IModule, IModuleEndpoints
             return Results.NoContent();
         }).AllowAnonymous();
 
+        // Onboarding self-service — as DUAS portas de entrada (1º dono / convidado) do mesmo
+        // endpoint, ver RegistrarUseCase. AllowAnonymous pela MESMA razão de /auth/login (não faz
+        // sentido exigir um Bearer válido pra criar a PRIMEIRA conta); mesmo rate limit por IP de
+        // /auth/login — é igualmente um endpoint público que cria estado a partir de input não
+        // autenticado.
+        api.MapPost("/auth/registrar", async (RegistrarRequest req, ITenantsDeInstalacao tenants, RegistrarUseCase useCase, CancellationToken ct) =>
+        {
+            var businessId = (await tenants.ObterBusinessIdsAsync(ct).ConfigureAwait(false)).FirstOrDefault();
+            if (businessId is null)
+            {
+                return new Error("identidade.registrar.instalacao_sem_negocio", "Instalação sem negócio configurado.").ParaRespostaHttp(StatusCodes.Status500InternalServerError);
+            }
+
+            var resultado = await useCase.ExecutarAsync(new RegistrarComando(businessId, req.Nome, req.Email, req.Senha, req.ConviteToken), ct).ConfigureAwait(false);
+            return resultado.Falha
+                ? resultado.Erro.ParaRespostaHttp(StatusCodeDoErroDeRegistro(resultado.Erro))
+                : Results.Ok(TokensResponse.De(resultado.Valor));
+        })
+        .AllowAnonymous()
+        .RequireRateLimiting("auth-login");
+
         api.MapPost("/usuarios", async (CriarUsuarioRequest req, HttpContext http, CriarUsuarioUseCase useCase, CancellationToken ct) =>
         {
             var businessId = http.ObterBusinessId();
@@ -135,12 +174,66 @@ public sealed class IdentidadeEndpointsModule : IModule, IModuleEndpoints
                 ? resultado.Erro.ParaRespostaHttp(StatusCodeDoErroDeAtualizacao(resultado.Erro))
                 : Results.Ok(UsuarioDto.DeDominio(resultado.Valor));
         }).RequerPermissao(Modulo.Configuracoes, Acao.GerenciarUsuarios);
+
+        // Emite o convite — mesmo guard de permissão de POST /usuarios (só founder/admin). O
+        // TokenBruto só sai aqui (ConviteEmitidoResponse.Token); o front monta o link
+        // /aceitar-convite?token=... e repassa ao convidado por fora deste sistema (e-mail, chat).
+        api.MapPost("/convites", async (CriarConviteRequest req, HttpContext http, CriarConviteUseCase useCase, CancellationToken ct) =>
+        {
+            var businessId = http.ObterBusinessId();
+            var criadoPorUsuarioId = http.ObterUsuarioId();
+
+            if (!Enum.TryParse<Papel>(req.Papel, ignoreCase: true, out var papel))
+            {
+                return new Error("identidade.convite.papel_invalido", $"Papel '{req.Papel}' desconhecido.").ParaRespostaHttp();
+            }
+
+            var resultado = await useCase.ExecutarAsync(new CriarConviteComando(businessId, criadoPorUsuarioId, req.Email, papel), ct).ConfigureAwait(false);
+            return resultado.Falha
+                ? resultado.Erro.ParaRespostaHttp(resultado.Erro.Codigo == "identidade.convite.email_ja_cadastrado" ? StatusCodes.Status409Conflict : StatusCodes.Status422UnprocessableEntity)
+                : Results.Created(
+                    $"/api/convites/{resultado.Valor.Convite.Id}",
+                    new ConviteEmitidoResponse(resultado.Valor.TokenBruto, resultado.Valor.Convite.Email, resultado.Valor.Convite.Papel.ToString(), resultado.Valor.Convite.ExpiraEm));
+        }).RequerPermissao(Modulo.Configuracoes, Acao.GerenciarUsuarios);
+
+        api.MapGet("/convites", async (HttpContext http, IConviteRepository repositorio, CancellationToken ct) =>
+        {
+            var businessId = http.ObterBusinessId();
+            var lista = await repositorio.ListarPendentesAsync(businessId, ct).ConfigureAwait(false);
+            return Results.Ok(lista.Select(ConviteDto.DeDominio));
+        }).RequerPermissao(Modulo.Configuracoes, Acao.GerenciarUsuarios);
+
+        api.MapPost("/convites/{id}/revogar", async (string id, HttpContext http, RevogarConviteUseCase useCase, CancellationToken ct) =>
+        {
+            var businessId = http.ObterBusinessId();
+            var resultado = await useCase.ExecutarAsync(new RevogarConviteComando(businessId, id), ct).ConfigureAwait(false);
+            return resultado.Falha
+                ? resultado.Erro.ParaRespostaHttp(resultado.Erro.Codigo == "identidade.convite.nao_encontrado" ? StatusCodes.Status404NotFound : StatusCodes.Status422UnprocessableEntity)
+                : Results.NoContent();
+        }).RequerPermissao(Modulo.Configuracoes, Acao.GerenciarUsuarios);
+
+        // ANÔNIMO de propósito — o convidado ainda não tem sessão nenhuma quando abre o link
+        // /aceitar-convite?token=...; só devolve email+papel do convite (nunca CriadoPorUsuarioId/
+        // TokenHash) pra pré-preencher o formulário antes de POST /auth/registrar.
+        api.MapGet("/convites/{token}", async (string token, ConsultarConvitePorTokenUseCase useCase, CancellationToken ct) =>
+        {
+            var resultado = await useCase.ExecutarAsync(token, ct).ConfigureAwait(false);
+            return Results.Ok(new ConvitePreviewResponse(resultado.Valido, resultado.Email, resultado.Papel, resultado.Motivo));
+        }).AllowAnonymous();
     }
 
     private static int StatusCodeDoErroDeLogin(Error erro) => erro.Codigo switch
     {
         "identidade.login.bloqueado_temporariamente" => StatusCodes.Status429TooManyRequests,
         _ => StatusCodes.Status401Unauthorized,
+    };
+
+    private static int StatusCodeDoErroDeRegistro(Error erro) => erro.Codigo switch
+    {
+        "identidade.registrar.email_em_uso" => StatusCodes.Status409Conflict,
+        "identidade.registrar.convite_obrigatorio" => StatusCodes.Status403Forbidden,
+        "identidade.registrar.convite_invalido" => StatusCodes.Status403Forbidden,
+        _ => StatusCodes.Status422UnprocessableEntity,
     };
 
     private static int StatusCodeDoErroDeAtualizacao(Error erro) => erro.Codigo switch

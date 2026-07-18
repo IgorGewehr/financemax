@@ -26,13 +26,16 @@ public sealed class IdentidadeInfrastructureModule : IModule
         {
             services.AddScoped<IUsuarioRepository, SqliteUsuarioRepository>();
             services.AddScoped<IRefreshTokenRepository, SqliteRefreshTokenRepository>();
+            services.AddScoped<IConviteRepository, SqliteConviteRepository>();
             services.AddModuleSchemaMigration<IdentidadeSchemaMigrationV1>();
             services.AddModuleSchemaMigration<IdentidadeSchemaMigrationV2>();
+            services.AddModuleSchemaMigration<IdentidadeSchemaMigrationV3>();
         }
         else
         {
             services.AddSingleton<IUsuarioRepository, InMemoryUsuarioRepository>();
             services.AddSingleton<IRefreshTokenRepository, InMemoryRefreshTokenRepository>();
+            services.AddSingleton<IConviteRepository, InMemoryConviteRepository>();
         }
 
         services.AddSingleton<ITentativaLoginStore, InMemoryTentativaLoginStore>();

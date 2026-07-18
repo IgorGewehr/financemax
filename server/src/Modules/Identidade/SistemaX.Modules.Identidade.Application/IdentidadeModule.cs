@@ -27,5 +27,9 @@ public sealed class IdentidadeModule : IModule
         services.AddScoped<LogoutUseCase>();
         services.AddScoped<CriarUsuarioUseCase>();
         services.AddScoped<AtualizarUsuarioUseCase>();
+        services.AddScoped<RegistrarUseCase>();
+        services.AddScoped<CriarConviteUseCase>();
+        services.AddScoped<RevogarConviteUseCase>();
+        services.AddScoped<ConsultarConvitePorTokenUseCase>();
     }
 }

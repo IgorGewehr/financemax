@@ -14,6 +14,10 @@
          2.1.11 carrega SQLite < 3.50.2, vulnerável a CVE-2025-6965/GHSA-2m69-gcr7-jv3q (NU1903). -->
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.12" />
     <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.10" />
+    <!-- ServiceCollection/BuildServiceProvider concretos — só o pacote .Abstractions chega
+         transitivamente via Infrastructure; IdentidadeBootstrapSeederTests monta um container
+         mínimo de verdade (o seeder usa CreateAsyncScope, que exige um IServiceScopeFactory real). -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.10" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
