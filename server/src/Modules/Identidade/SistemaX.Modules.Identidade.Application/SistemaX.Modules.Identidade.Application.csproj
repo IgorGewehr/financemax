@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\SistemaX.Modules.Identidade.Domain\SistemaX.Modules.Identidade.Domain.csproj" />
+    <ProjectReference Include="..\..\Abstractions\SistemaX.Modules.Abstractions\SistemaX.Modules.Abstractions.csproj" />
+  </ItemGroup>
+
+  <!-- Endpoints/IdentidadeEndpointsModule.cs mapeia rotas minimal-API (IEndpointRouteBuilder) —
+       mesmo racional do FrameworkReference em Financeiro.Application.csproj (NU1510 se fosse
+       PackageReference explícito). SenhaHasher (Argon2id) e GeradorDeTokens (JWT) vivem aqui
+       porque não têm NENHUMA dependência de host/ASP.NET — só o contrato de assinatura de token
+       cruza com Microsoft.IdentityModel.Tokens/System.IdentityModel.Tokens.Jwt (bibliotecas puras,
+       não acopladas a Kestrel/Middleware). -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Argon2id — hash de senha (§1 do escopo F2 "nunca guardar senha em claro"). Konscious é a
+         implementação .NET mais usada de Argon2 RFC 9106 (gerenciada, sem P/Invoke nativo extra). -->
+    <PackageReference Include="Konscious.Security.Cryptography.Argon2" Version="1.3.1" />
+
+    <!-- Emissão de JWT (access token curto + claims sub/businessId/papel — §3 do escopo). A
+         VALIDAÇÃO do token em runtime usa Microsoft.AspNetCore.Authentication.JwtBearer no host
+         (Financemax.Api) — aqui só a EMISSÃO, que não precisa do pacote de bearer/host. -->
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.19.2" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

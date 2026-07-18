@@ -1,5 +1,6 @@
-# financemax — F1: só o serviço `api` (servidor Financeiro headless). cloudflared/litestream/
-# postgres (ARQUITETURA.md §4) entram em fatias futuras — F1 é rodar local/VM com SQLite.
+# financemax — F2: serviço `api` (Financeiro headless + auth e-mail+senha multi-usuário) +
+# `cloudflared` (túnel opcional para acesso remoto seguro, sem abrir porta). Litestream/Postgres
+# (ARQUITETURA.md §4) entram em fatias futuras.
 services:
   api:
     build:
@@ -22,6 +23,24 @@ services:
       timeout: 5s
       start_period: 15s
       retries: 3
+
+  # Cloudflare Tunnel — acesso ONLINE do colega (MVP-ESCOPO.md: "dono no Mac + colega no
+  # Windows, mesma base"). OUTBOUND-ONLY: a VM/máquina do dono nunca abre porta de entrada, o
+  # túnel conecta pra FORA até a borda da Cloudflare (TLS termina lá) e rotea pra `api:8080` pela
+  # rede interna do compose. Profile opcional — só sobe com `docker compose --profile tunnel up`;
+  # sem o profile, o compose de sempre (`docker compose up`) continua idêntico ao F1 (só `api`,
+  # acesso local/LAN pela porta publicada). Token NUNCA commitado — vem de CLOUDFLARE_TUNNEL_TOKEN
+  # no .env (gitignored; placeholder em .env.example). Ver README.md "Acesso remoto" para o passo
+  # a passo de criar o túnel no painel Cloudflare Zero Trust e como o colega no Windows conecta.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    profiles: ["tunnel"]
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - api
 
 volumes:
   financemax-data: {}

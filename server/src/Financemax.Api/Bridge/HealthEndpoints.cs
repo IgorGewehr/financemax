@@ -12,6 +12,6 @@ public static class HealthEndpoints
             status = "ok",
             servico = "financemax-api",
             uptimeSegundos = (long)(DateTimeOffset.UtcNow - iniciadoEm).TotalSeconds,
-        }));
+        })).AllowAnonymous();
     }
 }

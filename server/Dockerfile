@@ -1,4 +1,4 @@
-# financemax — Financemax.Api (F1: servidor Financeiro headless)
+# financemax — Financemax.Api (F2: servidor Financeiro headless + auth e-mail+senha multi-usuário)
 # Multi-stage: SDK .NET 10 para build/publish -> runtime ASP.NET 10 (menor, sem SDK).
 
 # ---- build ----
@@ -14,6 +14,9 @@ COPY src/Infrastructure/SistemaX.Infrastructure.Local/SistemaX.Infrastructure.Lo
 COPY src/Modules/Financeiro/SistemaX.Modules.Financeiro.Domain/SistemaX.Modules.Financeiro.Domain.csproj src/Modules/Financeiro/SistemaX.Modules.Financeiro.Domain/
 COPY src/Modules/Financeiro/SistemaX.Modules.Financeiro.Application/SistemaX.Modules.Financeiro.Application.csproj src/Modules/Financeiro/SistemaX.Modules.Financeiro.Application/
 COPY src/Modules/Financeiro/SistemaX.Modules.Financeiro.Infrastructure/SistemaX.Modules.Financeiro.Infrastructure.csproj src/Modules/Financeiro/SistemaX.Modules.Financeiro.Infrastructure/
+COPY src/Modules/Identidade/SistemaX.Modules.Identidade.Domain/SistemaX.Modules.Identidade.Domain.csproj src/Modules/Identidade/SistemaX.Modules.Identidade.Domain/
+COPY src/Modules/Identidade/SistemaX.Modules.Identidade.Application/SistemaX.Modules.Identidade.Application.csproj src/Modules/Identidade/SistemaX.Modules.Identidade.Application/
+COPY src/Modules/Identidade/SistemaX.Modules.Identidade.Infrastructure/SistemaX.Modules.Identidade.Infrastructure.csproj src/Modules/Identidade/SistemaX.Modules.Identidade.Infrastructure/
 COPY src/Financemax.Api/Financemax.Api.csproj src/Financemax.Api/
 COPY tests/SistemaX.Modules.Financeiro.Tests/SistemaX.Modules.Financeiro.Tests.csproj tests/SistemaX.Modules.Financeiro.Tests/
 

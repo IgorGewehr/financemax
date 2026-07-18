@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <!-- Sdk.Web só para herdar o mesmo shared framework do projeto testado
+         (WebApplicationFactory<Program> exige isso); este projeto não é um host, só testes. -->
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.10" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Financemax.Api\Financemax.Api.csproj" />
+    <!-- Referenciado explicitamente (não só transitivo via Financemax.Api) para construir um JWT
+         expirado sob medida no teste "token expirado é rejeitado" — GeradorDeTokens/JwtOptions. -->
+    <ProjectReference Include="..\..\src\Modules\Identidade\SistemaX.Modules.Identidade.Application\SistemaX.Modules.Identidade.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Identidade\SistemaX.Modules.Identidade.Domain\SistemaX.Modules.Identidade.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Abstractions\SistemaX.Modules.Abstractions\SistemaX.Modules.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

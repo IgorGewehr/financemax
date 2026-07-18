@@ -8,6 +8,9 @@ using SistemaX.Modules.Financeiro.Application;
 using SistemaX.Modules.Financeiro.Application.Endpoints;
 using SistemaX.Modules.Financeiro.Infrastructure;
 using SistemaX.Modules.Financeiro.Infrastructure.Cron;
+using SistemaX.Modules.Identidade.Application;
+using SistemaX.Modules.Identidade.Application.Endpoints;
+using SistemaX.Modules.Identidade.Infrastructure;
 
 namespace Financemax.Api.Composition;
 
@@ -32,7 +35,12 @@ public static class FinancemaxHost
         var registry = new ModuleRegistry()
             .Adicionar(new FinanceiroModule())                // casos de uso + read-models + quant
             .Adicionar(new FinanceiroInfrastructureModule())   // adapters SQLite (persistencia=sqlite)
-            .Adicionar(new FinanceiroEndpointsModule());       // /api/financeiro/*
+            .Adicionar(new FinanceiroEndpointsModule())        // /api/financeiro/*
+            // F2 — auth e-mail+senha multi-usuário (MVP-ESCOPO.md, ARQUITETURA.md §3). Mesmo
+            // desenho de 3 IModule que o Financeiro (Application/Infrastructure/Endpoints).
+            .Adicionar(new IdentidadeModule())                 // casos de uso (login/refresh/CRUD usuário)
+            .Adicionar(new IdentidadeInfrastructureModule())   // adapters SQLite (persistencia=sqlite)
+            .Adicionar(new IdentidadeEndpointsModule());       // /api/auth/*, /api/usuarios/*
 
         registry.RegistrarTodos(services, contexto);
 

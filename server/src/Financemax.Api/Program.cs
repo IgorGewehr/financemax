@@ -6,24 +6,29 @@ using Serilog;
 using Serilog.Events;
 using SistemaX.Modules.Abstractions;
 using SistemaX.Modules.Financeiro.Infrastructure.Seed;
+using SistemaX.Modules.Identidade.Infrastructure.Seed;
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────
-// financemax F1 — servidor Financeiro headless. Molde: SistemaX.Host.Desktop/Program.cs, reduzido
-// ao que um container Linux precisa: sem Velopack (updater), sem Photino (janela), sem boot-token/
-// PIN (StubAuthMiddleware até a F2 trazer e-mail+senha real). Kestrel escuta 0.0.0.0:8080 dentro
-// do container. Hoje (F1) o docker-compose.yml PUBLICA essa porta pra fora ("ports:") porque
-// cloudflared/Litestream ainda não existem no compose — é a topologia provisória de F1 (uso
-// local/VM sem túnel). O plano de produção (ARQUITETURA.md §4) é cloudflared-only, sem "ports:"
-// publicada: isso entra na F2, junto com a auth de verdade; quando endurecer, remover "ports:" e
-// atualizar este comentário.
+// financemax F2 — servidor Financeiro headless + auth e-mail+senha multi-usuário ONLINE
+// (MVP-ESCOPO.md, ARQUITETURA.md §3). Molde: SistemaX.Host.Desktop/Program.cs, reduzido ao que um
+// container Linux precisa: sem Velopack (updater), sem Photino (janela), sem boot-token/PIN. O
+// antigo StubAuthMiddleware (F1, businessId+papel fixos) foi SUBSTITUÍDO por JWT real
+// (JwtAuthSetup.AddIdentidadeAuth + SessaoClaimsMiddleware) — businessId continua fixo por
+// instalação (single-tenant, R1 nunca do request), mas papel/usuarioId agora vêm do TOKEN
+// validado por usuário de verdade. Kestrel escuta 0.0.0.0:8080 dentro do container. O
+// docker-compose.yml ainda PUBLICA essa porta pra fora ("ports:") para acesso local/LAN direto;
+// o acesso remoto seguro é via Cloudflare Tunnel (profile opcional "tunnel", outbound-only) — ver
+// docker-compose.yml e README.md "Acesso remoto".
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 var iniciadoEm = DateTimeOffset.UtcNow;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// businessId fixo desta instalação (F1 é single-tenant — ver StubAuthMiddleware/FinancemaxHost).
-// Financemax:BusinessId (appsettings/env FINANCEMAX__BUSINESSID) com fallback de dev.
+// businessId fixo desta instalação (single-tenant por design do MVP — ver ITenantsDeInstalacao/
+// FinancemaxHost; SessaoClaimsMiddleware NUNCA lê businessId do request, só do token validado,
+// que por sua vez só existe porque LoginUseCase o resolveu daqui). Financemax:BusinessId
+// (appsettings/env FINANCEMAX__BUSINESSID) com fallback de dev.
 var businessId = builder.Configuration["Financemax:BusinessId"] ?? "dev-tenant";
 
 // persistencia=sqlite alimenta o mesmo IConfiguration que FinanceiroInfrastructureModule lê para
@@ -51,20 +56,33 @@ builder.Host.UseSerilog((_, loggerConfig) =>
         .WriteTo.Console();
 });
 
-// 0.0.0.0:8080 — bind de container. F1: docker-compose.yml publica essa porta ("ports:") pra
-// acesso local/VM direto (cloudflared ainda não existe no compose). Plano de produção
-// (ARQUITETURA.md §4) é remover "ports:" e falar só via Cloudflare Tunnel — isso é F2.
+// 0.0.0.0:8080 — bind de container. docker-compose.yml continua publicando essa porta ("ports:")
+// pra acesso local/LAN direto; o serviço `cloudflared` (profile opcional "tunnel") ruteia pra ela
+// via rede interna do compose pra expor sem abrir porta na borda — ver docker-compose.yml.
 // FINANCEMAX_PORT sobrepõe em dev local.
 var porta = int.TryParse(Environment.GetEnvironmentVariable("FINANCEMAX_PORT"), out var portaEnv) ? portaEnv : 8080;
 builder.WebHost.ConfigureKestrel(o => o.Listen(IPAddress.Any, porta));
+
+// JWT — F2. Falha rápido no boot se FINANCEMAX_JWT_SECRET não estiver configurado (ver
+// JwtAuthSetup.ResolverChaveSecreta): um servidor multi-usuário ONLINE sem segredo de assinatura
+// forte configurado não é um estado seguro para subir, nem em dev (o .env local já tem um valor
+// de desenvolvimento — ver .env.example).
+var jwtOptions = JwtAuthSetup.ResolverOptions(builder.Configuration);
+builder.Services.AddIdentidadeAuth(jwtOptions);
 
 var registry = FinancemaxHost.RegistrarModulos(builder.Services, CamadaExecucao.Nuvem, builder.Configuration, businessId);
 
 var app = builder.Build();
 
-app.UseMiddleware<StubAuthMiddleware>(businessId);
+app.UseAuthentication();
+app.UseMiddleware<SessaoClaimsMiddleware>();
+app.UseRateLimiter();
+app.UseAuthorization();
 
-var api = app.MapGroup("/api");
+// Grupo /api EXIGE autenticação por padrão (401 sem token válido) — as poucas rotas que
+// precisam ser públicas (health check, login, refresh, logout) chamam .AllowAnonymous()
+// explicitamente na hora de mapear (ver HealthEndpoints.Mapear / IdentidadeEndpointsModule).
+var api = app.MapGroup("/api").RequireAuthorization();
 HealthEndpoints.Mapear(api, iniciadoEm);
 
 // Contrato IModuleEndpoints — o Host só ENUMERA, nunca conhece rota concreta de módulo nenhum
@@ -84,6 +102,12 @@ logger.LogInformation("financemax-api no ar em 0.0.0.0:{Porta} — businessId={B
 // sempre no fallback conservador por falta de FormaDePagamento pra resolver.
 await FinanceiroBootstrapSeeder.SemearAsync(app.Services, businessId);
 logger.LogInformation("Bootstrap de contas/formas de pagamento aplicado (idempotente).");
+
+// F2 — bootstrap do usuário founder inicial (§6 do escopo): sem isto, uma instalação nova não
+// tem NENHUM usuário e ninguém consegue logar pela primeira vez (só quem já está logado pode
+// criar outro usuário via POST /api/usuarios).
+await IdentidadeBootstrapSeeder.SemearAsync(app.Services, businessId);
+logger.LogInformation("Bootstrap de usuário administrador aplicado (idempotente).");
 
 await app.WaitForShutdownAsync();
 
