@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, LogIn, Mail } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
 
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -106,6 +107,10 @@ export function Login() {
               {loading ? 'Entrando…' : 'Entrar'}
             </Button>
           </form>
+
+          <Link to="/criar-conta" className="text-xs font-semibold text-muted-foreground hover:text-foreground">
+            Primeiro acesso ou recebeu um convite? Criar conta
+          </Link>
         </Surface>
       </motion.div>
     </div>

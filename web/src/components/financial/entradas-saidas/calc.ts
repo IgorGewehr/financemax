@@ -40,7 +40,8 @@ export const CATEGORIA_MAP_LANCAMENTO_RAPIDO: Record<string, CategoriaId> = {
 /** "cmv-fornecedor" → "Cmv Fornecedor" — fallback de rótulo pra `categoriaId` que o domínio real
  * devolve (`GET /financeiro/extrato`) e não está no catálogo conhecido de `CATEGORIA_LABEL`. Nunca
  * indexa `CATEGORIA_LABEL` à força com um `string` livre. */
-export function categoriaLabel(id: string): string {
+export function categoriaLabel(id: string | null | undefined): string {
+  if (!id) return 'Sem categoria';
   const conhecida = CATEGORIA_LABEL[id as CategoriaId];
   if (conhecida) return conhecida;
   return id

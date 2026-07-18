@@ -14,6 +14,10 @@ interface AuthContextValue {
   login: (email: string, senha: string) => Promise<void>;
   logout: () => void;
   loading: boolean;
+  /** Aplica uma `Session` já emitida e persistida fora do fluxo de e-mail+senha (ex.:
+   * `onboardingApi.registrar` — cria conta e devolve tokens direto, ver `pages/CriarConta.tsx`).
+   * Evita reload de página pra sincronizar este estado com o que já está no `localStorage`. */
+  applySession: (session: Session) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -49,7 +53,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
   }, []);
 
-  const value = useMemo<AuthContextValue>(() => ({ session, login, logout, loading }), [session, login, logout, loading]);
+  const applySession = useCallback((novaSessao: Session) => {
+    setSession(novaSessao);
+  }, []);
+
+  const value = useMemo<AuthContextValue>(
+    () => ({ session, login, logout, loading, applySession }),
+    [session, login, logout, loading, applySession],
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

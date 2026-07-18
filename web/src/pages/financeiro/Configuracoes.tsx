@@ -1,11 +1,17 @@
 import { Settings2 } from 'lucide-react';
 
+import { ConvitesSection } from '@/components/financial/configuracoes/ConvitesSection';
 import { ToggleRow } from '@/components/financial/configuracoes/ToggleRow';
 import { useFinanceiroConfiguracoes } from '@/components/financial/configuracoes/useFinanceiroConfiguracoes';
 import { PageHeader } from '@/components/shared';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Surface } from '@/components/ui/Surface';
+import { useAuth } from '@/lib/auth';
+
+/** Só quem administra convida gente nova — mesmo racional de `ROLE_HIERARCHY` do saas-erp
+ * (CLAUDE.md), aqui simplificado porque o financemax só tem esses dois papéis de topo. */
+const PODE_CONVIDAR = new Set(['founder', 'admin']);
 
 /**
  * Financeiro › Configurações — os dois toggles opt-in do módulo (nenhum mockup próprio: os
@@ -16,6 +22,8 @@ import { Surface } from '@/components/ui/Surface';
  */
 export function Configuracoes() {
   const vm = useFinanceiroConfiguracoes();
+  const { session } = useAuth();
+  const podeConvidar = Boolean(session && PODE_CONVIDAR.has(session.usuario.papel));
 
   return (
     <div>
@@ -57,6 +65,7 @@ export function Configuracoes() {
             salvando={vm.salvando === 'imobilizadoRoiAtivo'}
             onToggle={() => vm.alternar('imobilizadoRoiAtivo')}
           />
+          {podeConvidar && <ConvitesSection />}
         </div>
       )}
     </div>

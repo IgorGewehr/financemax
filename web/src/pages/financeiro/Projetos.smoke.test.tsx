@@ -5,7 +5,8 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { Link, MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import type { ConfiguracaoFinanceiraDto, PainelDoProjetoDto, ProjetoDto } from '@/lib/api/financeiro';
+import type { ConfiguracaoFinanceiraDto, CriarProjetoRequest, PainelDoProjetoDto, ProjetoDto } from '@/lib/api/financeiro';
+import { AuthProvider } from '@/lib/auth';
 import { ToastProvider } from '@/lib/toast';
 
 import { Configuracoes } from './Configuracoes';
@@ -15,6 +16,7 @@ const configuracoes = vi.fn();
 const salvarConfiguracoes = vi.fn();
 const projetos = vi.fn();
 const projetoPainel = vi.fn();
+const criarProjeto = vi.fn();
 
 vi.mock('@/lib/api/financeiro', () => ({
   financeiroApi: {
@@ -22,6 +24,14 @@ vi.mock('@/lib/api/financeiro', () => ({
     salvarConfiguracoes: (...args: unknown[]) => salvarConfiguracoes(...args),
     projetos: (...args: unknown[]) => projetos(...args),
     projetoPainel: (...args: unknown[]) => projetoPainel(...args),
+    criarProjeto: (...args: unknown[]) => criarProjeto(...args),
+  },
+}));
+
+vi.mock('@/lib/api/onboarding', () => ({
+  onboardingApi: {
+    criarConvite: vi.fn(),
+    listarConvites: vi.fn().mockResolvedValue([]),
   },
 }));
 
@@ -68,11 +78,13 @@ const PAINEL: PainelDoProjetoDto = {
 function Harness() {
   return (
     <ToastProvider>
-      <Link to="/financeiro/projetos">Ir para Projetos</Link>
-      <Routes>
-        <Route path="/financeiro/configuracoes" element={<Configuracoes />} />
-        <Route path="/financeiro/projetos" element={<Projetos />} />
-      </Routes>
+      <AuthProvider>
+        <Link to="/financeiro/projetos">Ir para Projetos</Link>
+        <Routes>
+          <Route path="/financeiro/configuracoes" element={<Configuracoes />} />
+          <Route path="/financeiro/projetos" element={<Projetos />} />
+        </Routes>
+      </AuthProvider>
     </ToastProvider>
   );
 }
@@ -105,6 +117,9 @@ describe('Financeiro › Projetos — fluxo opt-in completo (smoke)', () => {
     });
     projetos.mockReset().mockImplementation(() => Promise.resolve(cfg.analisePorProjetoAtiva ? [PROJETO] : []));
     projetoPainel.mockReset().mockImplementation(() => Promise.resolve(PAINEL));
+    criarProjeto.mockReset().mockImplementation((input: CriarProjetoRequest) =>
+      Promise.resolve({ id: 'p2', nome: input.nome, descricao: input.descricao ?? null, status: 'ativo', criadoEm: '2026-07-18T00:00:00Z', arquivadoEm: null }),
+    );
   });
 
   it('toggle desligado → estado vazio elegante; toggle ligado (via Configurações) → dados reais renderizados', async () => {
@@ -149,5 +164,23 @@ describe('Financeiro › Projetos — fluxo opt-in completo (smoke)', () => {
 
     await waitFor(() => expect(screen.getByText('Nenhum projeto cadastrado ainda')).toBeInTheDocument());
     expect(screen.queryByText('Análise por Projeto está desligada')).not.toBeInTheDocument();
+  });
+
+  it('botão "Novo projeto" cria via POST /financeiro/projetos e o projeto aparece na lista', async () => {
+    cfg.analisePorProjetoAtiva = true;
+    projetos.mockReset().mockResolvedValue([]);
+
+    renderHarness('/financeiro/projetos');
+
+    await waitFor(() => expect(screen.getByText('Nenhum projeto cadastrado ainda')).toBeInTheDocument());
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Novo projeto' })[0]);
+    await waitFor(() => expect(screen.getByLabelText('Nome')).toBeInTheDocument());
+
+    fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Consultoria Nova' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Criar projeto' }));
+
+    await waitFor(() => expect(criarProjeto).toHaveBeenCalledWith({ nome: 'Consultoria Nova', descricao: null }));
+    await waitFor(() => expect(screen.getAllByText('Consultoria Nova').length).toBeGreaterThan(0));
   });
 });

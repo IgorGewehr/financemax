@@ -7,6 +7,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { ApiError } from '@/lib/api/client';
 import type { AporteDeCapitalDto, AtivoDeCapitalDto, ConfiguracaoFinanceiraDto, RoiDoNegocioDto } from '@/lib/api/financeiro';
+import { AuthProvider } from '@/lib/auth';
 import { ToastProvider } from '@/lib/toast';
 
 import { Configuracoes } from './Configuracoes';
@@ -25,6 +26,13 @@ vi.mock('@/lib/api/financeiro', () => ({
     roiNegocio: (...args: unknown[]) => roiNegocio(...args),
     imobilizado: (...args: unknown[]) => imobilizado(...args),
     aportes: (...args: unknown[]) => aportes(...args),
+  },
+}));
+
+vi.mock('@/lib/api/onboarding', () => ({
+  onboardingApi: {
+    criarConvite: vi.fn(),
+    listarConvites: vi.fn().mockResolvedValue([]),
   },
 }));
 
@@ -80,11 +88,13 @@ const APORTE: AporteDeCapitalDto = { id: 'ap1', valorCentavos: 50000, data: '202
 function Harness() {
   return (
     <ToastProvider>
-      <Link to="/financeiro/roi-negocio">Ir para Investimento &amp; ROI</Link>
-      <Routes>
-        <Route path="/financeiro/configuracoes" element={<Configuracoes />} />
-        <Route path="/financeiro/roi-negocio" element={<RoiNegocio />} />
-      </Routes>
+      <AuthProvider>
+        <Link to="/financeiro/roi-negocio">Ir para Investimento &amp; ROI</Link>
+        <Routes>
+          <Route path="/financeiro/configuracoes" element={<Configuracoes />} />
+          <Route path="/financeiro/roi-negocio" element={<RoiNegocio />} />
+        </Routes>
+      </AuthProvider>
     </ToastProvider>
   );
 }

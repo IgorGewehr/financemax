@@ -1,10 +1,13 @@
-import { ChevronDown, FolderKanban } from 'lucide-react';
+import { ChevronDown, FolderKanban, Plus } from 'lucide-react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { ModalNovoProjeto } from '@/components/financial/projetos/ModalNovoProjeto';
 import { ProjetoPainel } from '@/components/financial/projetos/ProjetoPainel';
 import { ProjetoSeletor } from '@/components/financial/projetos/ProjetoSeletor';
 import { useProjetos } from '@/components/financial/projetos/useProjetos';
 import { OptInEmptyState, PageHeader } from '@/components/shared';
+import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Surface } from '@/components/ui/Surface';
@@ -20,8 +23,23 @@ export function Projetos() {
   const vm = useProjetos();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [modalAberto, setModalAberto] = useState(false);
 
   const ativo = vm.configuracao.dado?.analisePorProjetoAtiva ?? null;
+
+  function abrirNovoProjeto() {
+    if (ativo === false) {
+      toast('Ative a Análise por Projeto em Configurações antes de criar um projeto.', 'info');
+      navigate('/financeiro/configuracoes');
+      return;
+    }
+    setModalAberto(true);
+  }
+
+  async function salvarNovoProjeto(input: Parameters<typeof vm.criar>[0]) {
+    const novo = await vm.criar(input);
+    toast(`Projeto "${novo.nome}" criado ✓`, 'success');
+  }
 
   return (
     <div>
@@ -52,16 +70,21 @@ export function Projetos() {
               Janela · mês corrente
               <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
             </button>
+            <Button type="button" variant="primary" size="sm" icon={<Plus className="h-3.5 w-3.5" />} onClick={abrirNovoProjeto}>
+              Novo projeto
+            </Button>
           </>
         }
       />
 
-      <Conteudo vm={vm} />
+      <Conteudo vm={vm} onNovoProjeto={abrirNovoProjeto} />
+
+      <ModalNovoProjeto open={modalAberto} salvando={vm.criando} onClose={() => setModalAberto(false)} onSalvar={salvarNovoProjeto} />
     </div>
   );
 }
 
-function Conteudo({ vm }: { vm: ReturnType<typeof useProjetos> }) {
+function Conteudo({ vm, onNovoProjeto }: { vm: ReturnType<typeof useProjetos>; onNovoProjeto: () => void }) {
   if (vm.configuracao.carregando || vm.projetos.carregando) {
     return (
       <div className="space-y-4">
@@ -122,6 +145,11 @@ function Conteudo({ vm }: { vm: ReturnType<typeof useProjetos> }) {
         icon={<FolderKanban className="h-5 w-5" />}
         title="Nenhum projeto cadastrado ainda"
         description="Crie um projeto para começar a taguear assinaturas, ativos e tempo — e ver o unit economics de cada linha de produto."
+        action={
+          <Button type="button" variant="primary" size="sm" icon={<Plus className="h-3.5 w-3.5" />} onClick={onNovoProjeto}>
+            Novo projeto
+          </Button>
+        }
       />
     );
   }

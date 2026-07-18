@@ -23,9 +23,14 @@ export function reaisToCentavos(reais: number): number {
 }
 
 /** Sem barra final — `request()` sempre concatena `${BASE_URL}/api${path}` com `path` começando
- * em `/`. Default de dev espelha o `docker-compose`/Kestrel local do servidor (`Financemax.Api`
- * ouvindo em :8080, ver `server/`); produção configura via `VITE_API_BASE_URL` no build. */
-const BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080').replace(/\/+$/, '');
+ * em `/`. RELATIVA por padrão (string vazia): tanto em dev (`vite.config.ts` faz proxy de `/api`
+ * pro `Financemax.Api` local) quanto em produção (o túnel do dono — Cloudflare Tunnel/reverse
+ * proxy na VM — roteia `/api` da MESMA origem que serve o build estático, ex.
+ * `finance.tensorroot.com/api/...`) o front nunca precisa saber o host/porta real do servidor —
+ * zero CORS, zero URL absoluta hardcoded no bundle. `VITE_API_BASE_URL` continua existindo como
+ * OVERRIDE opcional (ex.: apontar um front local pra uma API remota sem tocar no túnel) — ver
+ * `.env.example`. */
+const BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
 
 const SESSION_KEY = 'financemax:session';
 

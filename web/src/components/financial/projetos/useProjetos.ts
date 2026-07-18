@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { ApiError } from '@/lib/api/client';
-import { financeiroApi, type ConfiguracaoFinanceiraDto, type PainelDoProjetoDto, type ProjetoDto } from '@/lib/api/financeiro';
+import {
+  financeiroApi,
+  type ConfiguracaoFinanceiraDto,
+  type CriarProjetoRequest,
+  type PainelDoProjetoDto,
+  type ProjetoDto,
+} from '@/lib/api/financeiro';
 
 export interface Recurso<T> {
   dado: T | null;
@@ -34,6 +40,7 @@ export function useProjetos() {
   const [projetos, setProjetos] = useState<Recurso<ProjetoDto[]>>(inicial);
   const [selecionadoId, setSelecionadoId] = useState<string | null>(null);
   const [paineis, setPaineis] = useState<Record<string, Recurso<PainelDoProjetoDto>>>({});
+  const [criando, setCriando] = useState(false);
 
   const carregar = useCallback(() => {
     setConfiguracao(inicial());
@@ -74,6 +81,21 @@ export function useProjetos() {
     }
   }, [projetos.dado]);
 
+  // `POST /financeiro/projetos` (§2 do contrato): cria e já entra na lista + fica selecionado —
+  // sem round-trip de `GET /financeiro/projetos` de novo (a resposta do POST já é o `ProjetoDto`
+  // completo). O painel do novo projeto é buscado pelo efeito acima assim que `projetos.dado` muda.
+  const criar = useCallback(async (input: CriarProjetoRequest): Promise<ProjetoDto> => {
+    setCriando(true);
+    try {
+      const novo = await financeiroApi.criarProjeto(input);
+      setProjetos((prev) => ({ dado: [...(prev.dado ?? []), novo], erro: null, carregando: false }));
+      setSelecionadoId(novo.id);
+      return novo;
+    } finally {
+      setCriando(false);
+    }
+  }, []);
+
   return {
     configuracao,
     projetos,
@@ -82,6 +104,8 @@ export function useProjetos() {
     paineis,
     painelAtivo: selecionadoId ? (paineis[selecionadoId] ?? inicial<PainelDoProjetoDto>()) : inicial<PainelDoProjetoDto>(),
     recarregar: carregar,
+    criando,
+    criar,
   };
 }
 

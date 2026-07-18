@@ -16,10 +16,16 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: false,
-    // Sem proxy de dev: diferente do sistemax de origem (mesma origem do Kestrel embutido), o
-    // financemax fala com uma base URL ABSOLUTA (`VITE_API_BASE_URL`, ver `.env.example` e
-    // `lib/api/client.ts`) — o servidor mora numa VM remota atrás de Cloudflare Tunnel, não no
-    // mesmo processo do Vite. CORS é responsabilidade do `Financemax.Api` (F2).
+    // Proxy de dev: `lib/api/client.ts` fala `/api/...` RELATIVO por padrão (mesma convenção que
+    // produção usa via túnel — ver comentário lá e `.env.example`); em dev, quem resolve esse
+    // caminho pro `Financemax.Api` local é este proxy do Vite. Ajuste a porta se o servidor local
+    // não estiver em :8090 (ou defina `VITE_API_BASE_URL` pra pular o proxy inteiramente).
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8090',
+        changeOrigin: true,
+      },
+    },
   },
   build: {
     outDir: 'dist',

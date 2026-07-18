@@ -7,21 +7,32 @@ import type { ContaDisponivel, LancamentoRow } from '@/components/financial/entr
 import type { ContaBancariaDto, ExtratoLinhaDto } from '@/lib/api/financeiro';
 
 /** "2026-07-16T00:00:00-03:00" ou "2026-07-16" → "2026-07-16". Nunca `new Date(iso)` — extração
- * textual, determinística (mesma diretriz de `adapters/financeiro/bancario.ts`). */
-function isoData(iso: string): string {
+ * textual, determinística (mesma diretriz de `adapters/financeiro/bancario.ts`). Tolera
+ * `null`/`undefined`/vazio (linha real ainda sem data definida) — nunca lança. */
+function isoData(iso: string | null | undefined): string {
+  if (!iso) return '';
   return iso.split('T')[0] ?? iso;
 }
 
+/**
+ * Boundary real→interno (R6, CLAUDE.md): único ponto onde `ExtratoLinhaDto` vira `LancamentoRow`.
+ * O TS diz que `categoriaId`/`descricao`/`data`/`valor` são sempre presentes, mas
+ * `GET /financeiro/extrato` real pode devolver linhas parcialmente preenchidas (ex.: movimento
+ * bancário ainda sem categoria) que o mock nunca exercitou — causa raiz do crash em produção de
+ * `/financeiro/entradas-saidas` (`categoriaLabel()`/`isoData()` chamando `.split` num `null`,
+ * `l.valor.centavos` num `undefined`). Coage aqui, uma vez, pra que o resto do módulo
+ * (`calc.ts`, `LinhaDoTempo`, `ModalDetalhe`, ...) continue confiando cegamente no tipo.
+ */
 export function deExtratoLinhas(dtos: ExtratoLinhaDto[]): LancamentoRow[] {
   return dtos.map((l) => ({
     id: l.id,
     data: isoData(l.data),
-    desc: l.descricao,
+    desc: l.descricao ?? '',
     sub: null,
-    categoria: l.categoriaId,
+    categoria: l.categoriaId ?? '',
     tipo: l.tipo,
     status: l.status,
-    valorCentavos: l.valor.centavos,
+    valorCentavos: l.valor?.centavos ?? 0,
     conta: l.conta ?? undefined,
     origem: l.origem ?? undefined,
     diasAtraso: l.diasAtraso ?? undefined,
